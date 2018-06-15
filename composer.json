@@ -1,0 +1,30 @@
+{
+    "authors": [
+        {
+            "email": "fkooman@tuxed.net",
+            "name": "Fran\u00e7ois Kooman"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "fkooman\\SqliteMigrate\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "fkooman\\SqliteMigrate\\Tests\\": "tests/"
+        }
+    },
+    "description": "Simple SQLite Migrations",
+    "license": "MIT",
+    "name": "fkooman/php-sqlite-migrate",
+    "require": {
+        "ext-pdo": "*",
+        "ext-spl": "*",
+        "php": ">= 5.4"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^4|^5|^6|^7"
+    },
+    "type": "library"
+}
