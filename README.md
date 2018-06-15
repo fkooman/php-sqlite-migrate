@@ -1,25 +1,25 @@
-This is very simple library that can assist with database migrations for SQLite
-when using PHP.
+Very simple library that can assist with database migrations for SQLite when 
+using PHP.
+
+# Why
+
+Ability to update an SQLite database "in the field" when software updates 
+through Debian and RPM packages do not require administrator involvement.
+
+We wanted to avoid requiring administrators to manually run database 
+migrations.
 
 # Features
 
 * Start out with an application that has no database schema versioning, no need
   to rewrite everything;
-* Chained migration, i.e. apply multiple schema updates simultaniously;
+* Chained migration, i.e. apply multiple schema updates simultaneously;
 * No need to run through all migrations on "fresh" application install;
 * Uses `PDO`, "optimized" for SQLite, but other databases may work;
 * Works for "hot migrations" in the field, i.e. you can hook it into the normal
   application flow, migration will run when needed;
 * Prevents multiple migrations to run in parallel when your application is 
   under heavy load;
-
-# Why
-
-Ability to update an SQLite database "in the field" when software updates do 
-not require adminitrator involvement.
-
-We wanted to avoid requiring administrators to manually run database 
-migrations.
 
 # Limitations
 
@@ -37,7 +37,7 @@ initialize the database on fresh installations of the application.
 With this class you can create an `update()` method that triggers the 
 migrations.
 
-# Implementation
+# API
 
 Embed the `Migrator` class in your database class to take care of table 
 migration. In the example below we have a database currently without versioning
