@@ -69,7 +69,12 @@ If in the future you want to add another modifcation, you leave the above as
 is, but change the version in the constructor to the new version and add 
 another update, from the previous version to the next, e.g.:
 
-     // the version of the database your application *expects*
+    <?php
+
+    //
+    // ...
+    // 
+    // NOTE the latest version ---------------------vvvvvvvvvv
     $m = new \fkooman\SqliteMigrate\Migrator($dbh, '2018061601');
     $m->addUpdate(
         \fkooman\SqliteMigrate\Migrator::NO_VERSION,
