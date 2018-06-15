@@ -49,6 +49,9 @@ class Migrator
     {
         $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $this->dbh = $dbh;
+        if (1 !== \preg_match('/^[0-9]{10}$/', $schemaVersion)) {
+            throw new RangeException('schemaVersion must be 10 a digit string');
+        }
         $this->schemaVersion = $schemaVersion;
     }
 
@@ -84,14 +87,12 @@ class Migrator
     {
         $fromToVersion = \sprintf('%s:%s', $fromVersion, $toVersion);
         if (1 !== \preg_match('/^[0-9]{10}:[0-9]{10}$/', $fromToVersion)) {
-            throw new RangeException('fromVersion/toVersion must be 10 digit string');
+            throw new RangeException('fromVersion and toVersion must be 10 digit strings');
         }
         $this->updateList[$fromToVersion] = $queryList;
     }
 
     /**
-     * @param array<string,array<string>> $dbQueries
-     *
      * @return void
      */
     public function update()
