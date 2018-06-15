@@ -20,7 +20,6 @@
     "name": "fkooman/php-sqlite-migrate",
     "require": {
         "ext-pdo": "*",
-        "ext-spl": "*",
         "php": ">= 5.4"
     },
     "require-dev": {
