@@ -54,6 +54,7 @@ class MigratorTest extends TestCase
         $dbh->exec('INSERT INTO foo (a) VALUES(3)');
 
         $migrator = new Migrator($dbh, '2018010102');
+        $this->assertTrue($migrator->isUpdateRequired());
         $migrator->addUpdate(
             '2018010101',
             '2018010102',
@@ -66,6 +67,7 @@ class MigratorTest extends TestCase
         );
         $migrator->update();
         $this->assertSame('2018010102', $migrator->getCurrentVersion());
+        $this->assertFalse($migrator->isUpdateRequired());
         $sth = $dbh->query('SELECT * FROM foo');
         $this->assertSame(
             [

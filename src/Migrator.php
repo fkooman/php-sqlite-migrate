@@ -26,6 +26,7 @@ namespace fkooman\SqliteMigrate;
 
 use PDO;
 use PDOException;
+use RangeException;
 
 class Migrator
 {
@@ -65,6 +66,14 @@ class Migrator
     }
 
     /**
+     * @return bool
+     */
+    public function isUpdateRequired()
+    {
+        return $this->schemaVersion !== $this->getCurrentVersion();
+    }
+
+    /**
      * @param string        $fromVersion
      * @param string        $toVersion
      * @param array<string> $queryList
@@ -73,7 +82,11 @@ class Migrator
      */
     public function addUpdate($fromVersion, $toVersion, array $queryList)
     {
-        $this->updateList[\sprintf('%s:%s', $fromVersion, $toVersion)] = $queryList;
+        $fromToVersion = \sprintf('%s:%s', $fromVersion, $toVersion);
+        if (1 !== \preg_match('/^[0-9]{10}:[0-9]{10}$/', $fromToVersion)) {
+            throw new RangeException('fromVersion/toVersion must be 10 digit string');
+        }
+        $this->updateList[$fromToVersion] = $queryList;
     }
 
     /**

@@ -52,18 +52,21 @@ where we want to add versioning and immediately perform an update:
 
      // the version of the database your application *expects*
     $m = new \fkooman\SqliteMigrate\Migrator($dbh, '2018061501');
-    $m->addUpdate(
-        \fkooman\SqliteMigrate\Migrator::NO_VERSION,
-        '2018061501',
-        [
-            // add column "b"
-            'ALTER TABLE foo RENAME TO _foo',
-            'CREATE TABLE foo (a INTEGER NOT NULL, b INTEGER DEFAULT 0)',
-            'INSERT INTO foo (a) SELECT a FROM _foo',
-            'DROP TABLE _foo',
-        ]
-    );
-    $m->update();
+
+    if ($m->isUpdateRequired()) {
+        $m->addUpdate(
+            \fkooman\SqliteMigrate\Migrator::NO_VERSION,
+            '2018061501',
+            [
+                // add column "b"
+                'ALTER TABLE foo RENAME TO _foo',
+                'CREATE TABLE foo (a INTEGER NOT NULL, b INTEGER DEFAULT 0)',
+                'INSERT INTO foo (a) SELECT a FROM _foo',
+                'DROP TABLE _foo',
+            ]
+        );
+        $m->update();
+    }
 
 If in the future you want to add another modifcation, you leave the above as 
 is, but change the version in the constructor to the new version and add 
@@ -76,29 +79,31 @@ another update, from the previous version to the next, e.g.:
     // 
     // NOTE the latest version ---------------------vvvvvvvvvv
     $m = new \fkooman\SqliteMigrate\Migrator($dbh, '2018061601');
-    $m->addUpdate(
-        \fkooman\SqliteMigrate\Migrator::NO_VERSION,
-        '2018061501',
-        [
-            // add column "b"
-            'ALTER TABLE foo RENAME TO _foo',
-            'CREATE TABLE foo (a INTEGER NOT NULL, b INTEGER DEFAULT 0)',
-            'INSERT INTO foo (a) SELECT a FROM _foo',
-            'DROP TABLE _foo',
-        ]
-    );
-    $m->addUpdate(
-        '2018061501',
-        '2018061601',
-        [
-            // add column "c" as well
-            'ALTER TABLE foo RENAME TO _foo',
-            'CREATE TABLE foo (a INTEGER NOT NULL, b INTEGER DEFAULT 0, c BOOLEAN DEFAULT 1)',
-            'INSERT INTO foo (a, b) SELECT a, b FROM _foo',
-            'DROP TABLE _foo',
-        ]
-    );
-    $m->update();
+    if ($m->isUpdateRequired()) {
+        $m->addUpdate(
+            \fkooman\SqliteMigrate\Migrator::NO_VERSION,
+            '2018061501',
+            [
+                // add column "b"
+                'ALTER TABLE foo RENAME TO _foo',
+                'CREATE TABLE foo (a INTEGER NOT NULL, b INTEGER DEFAULT 0)',
+                'INSERT INTO foo (a) SELECT a FROM _foo',
+                'DROP TABLE _foo',
+            ]
+        );
+        $m->addUpdate(
+            '2018061501',
+            '2018061601',
+            [
+                // add column "c" as well
+                'ALTER TABLE foo RENAME TO _foo',
+                'CREATE TABLE foo (a INTEGER NOT NULL, b INTEGER DEFAULT 0, c BOOLEAN DEFAULT 1)',
+                'INSERT INTO foo (a, b) SELECT a, b FROM _foo',
+                'DROP TABLE _foo',
+            ]
+        );
+        $m->update();
+    }
 
 Now from any state in the history of the database you can migrate to the 
 latest version.
