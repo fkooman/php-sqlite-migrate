@@ -98,11 +98,11 @@ class Migrator
             if ($fromVersion === $currentVersion) {
                 try {
                     $this->dbh->beginTransaction();
-                    $this->dbh->exec(\sprintf('DELETE FROM version WHERE current_version = "%s"', $fromVersion));
+                    $this->dbh->exec(\sprintf("DELETE FROM version WHERE current_version = '%s'", $fromVersion));
                     foreach ($queryList as $dbQuery) {
                         $this->dbh->exec($dbQuery);
                     }
-                    $this->dbh->exec(\sprintf('INSERT INTO version (current_version) VALUES("%s")', $toVersion));
+                    $this->dbh->exec(\sprintf("INSERT INTO version (current_version) VALUES('%s')", $toVersion));
                     $this->dbh->commit();
                     $currentVersion = $toVersion;
                 } catch (PDOException $e) {
@@ -142,6 +142,6 @@ class Migrator
     private function createVersionTable($schemaVersion)
     {
         $this->dbh->exec('CREATE TABLE IF NOT EXISTS version (current_version TEXT NOT NULL)');
-        $this->dbh->exec(\sprintf('INSERT INTO version (current_version) VALUES("%s")', $schemaVersion));
+        $this->dbh->exec(\sprintf("INSERT INTO version (current_version) VALUES('%s')", $schemaVersion));
     }
 }
