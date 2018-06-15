@@ -135,15 +135,12 @@ class Migrator
     }
 
     /**
-     * @param null|string $schemaVersion
+     * @param string $schemaVersion
      *
      * @return void
      */
-    private function createVersionTable($schemaVersion = null)
+    private function createVersionTable($schemaVersion)
     {
-        if (null === $schemaVersion) {
-            $schemaVersion = $this->schemaVersion;
-        }
         $this->dbh->exec('CREATE TABLE IF NOT EXISTS version (current_version TEXT NOT NULL)');
         $this->dbh->exec(\sprintf('INSERT INTO version (current_version) VALUES("%s")', $schemaVersion));
     }
