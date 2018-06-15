@@ -38,7 +38,7 @@ class Migrator
     private $schemaVersion;
 
     /** @var array<string, array> */
-    private $migrationList = [];
+    private $updateList = [];
 
     /**
      * @param \PDO   $dbh
@@ -56,7 +56,7 @@ class Migrator
      *
      * @return void
      */
-    public function init(array $queryList)
+    public function init(array $queryList = [])
     {
         foreach ($queryList as $dbQuery) {
             $this->dbh->exec($dbQuery);
@@ -71,9 +71,9 @@ class Migrator
      *
      * @return void
      */
-    public function addMigration($fromVersion, $toVersion, array $queryList)
+    public function addUpdate($fromVersion, $toVersion, array $queryList)
     {
-        $this->migrationList[\sprintf('%s:%s', $fromVersion, $toVersion)] = $queryList;
+        $this->updateList[\sprintf('%s:%s', $fromVersion, $toVersion)] = $queryList;
     }
 
     /**
@@ -92,8 +92,8 @@ class Migrator
         $this->dbh->exec('CREATE TABLE _migration_in_progress (dummy INTEGER)');
 
         // make sure we run through the migrations in order
-        \ksort($this->migrationList);
-        foreach ($this->migrationList as $fromTo => $queryList) {
+        \ksort($this->updateList);
+        foreach ($this->updateList as $fromTo => $queryList) {
             list($fromVersion, $toVersion) = \explode(':', $fromTo);
             if ($fromVersion === $currentVersion) {
                 try {

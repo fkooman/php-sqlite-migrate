@@ -54,7 +54,7 @@ class MigratorTest extends TestCase
         $dbh->exec('INSERT INTO foo (a) VALUES(3)');
 
         $migrator = new Migrator($dbh, '2018010102');
-        $migrator->addMigration(
+        $migrator->addUpdate(
             '2018010101',
             '2018010102',
             [
@@ -91,7 +91,7 @@ class MigratorTest extends TestCase
         $dbh->exec('INSERT INTO foo (a) VALUES(3)');
 
         $migrator = new Migrator($dbh, '2018010103');
-        $migrator->addMigration(
+        $migrator->addUpdate(
             '2018010101',
             '2018010102',
             [
@@ -102,7 +102,7 @@ class MigratorTest extends TestCase
             ]
         );
 
-        $migrator->addMigration(
+        $migrator->addUpdate(
             '2018010102',
             '2018010103',
             [
@@ -138,7 +138,7 @@ class MigratorTest extends TestCase
         $dbh->exec('INSERT INTO foo (a) VALUES(3)');
         $migrator = new Migrator($dbh, '2018010101');
 
-        $migrator->addMigration(
+        $migrator->addUpdate(
             Migrator::NO_VERSION,
             '2018010101',
             [
