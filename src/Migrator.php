@@ -134,6 +134,11 @@ class Migrator
         }
     }
 
+    /**
+     * @param null|string $schemaVersion
+     *
+     * @return void
+     */
     private function createVersionTable($schemaVersion = null)
     {
         if (null === $schemaVersion) {
