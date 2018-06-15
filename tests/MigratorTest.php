@@ -66,7 +66,6 @@ class MigratorTest extends TestCase
         );
         $migrator->update();
         $this->assertSame('2018010102', $migrator->getCurrentVersion());
-
         $sth = $dbh->query('SELECT * FROM foo');
         $this->assertSame(
             [
@@ -123,6 +122,41 @@ class MigratorTest extends TestCase
                     'a' => '3',
                     'b' => '0',
                     'c' => null,
+                ],
+            ],
+            $sth->fetchAll(PDO::FETCH_ASSOC)
+        );
+    }
+
+    public function testNoVersion()
+    {
+        // we have a database without versioning, but we want to bring it
+        // under version control, we can't run init as that would install the
+        // version table...
+        $dbh = new PDO('sqlite::memory:');
+        $dbh->exec('CREATE TABLE foo (a INTEGER NOT NULL)');
+        $dbh->exec('INSERT INTO foo (a) VALUES(3)');
+        $migrator = new Migrator($dbh, '2018010101');
+
+        $migrator->addMigration(
+            Migrator::NO_VERSION,
+            '2018010101',
+            [
+                'ALTER TABLE foo RENAME TO _foo',
+                'CREATE TABLE foo (a INTEGER NOT NULL, b BOOLEAN DEFAULT 0)',
+                'INSERT INTO foo (a) SELECT a FROM _foo',
+                'DROP TABLE _foo',
+            ]
+        );
+        $this->assertSame('0000000000', $migrator->getCurrentVersion());
+        $migrator->update();
+        $this->assertSame('2018010101', $migrator->getCurrentVersion());
+        $sth = $dbh->query('SELECT * FROM foo');
+        $this->assertSame(
+            [
+                [
+                    'a' => '3',
+                    'b' => '0',
                 ],
             ],
             $sth->fetchAll(PDO::FETCH_ASSOC)
