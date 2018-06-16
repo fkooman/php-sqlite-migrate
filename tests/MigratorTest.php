@@ -26,6 +26,7 @@ namespace fkooman\SqliteMigrate\Tests;
 
 use fkooman\SqliteMigrate\Migrator;
 use PDO;
+use PDOException;
 use PHPUnit\Framework\TestCase;
 
 class MigratorTest extends TestCase
@@ -163,5 +164,32 @@ class MigratorTest extends TestCase
             ],
             $sth->fetchAll(PDO::FETCH_ASSOC)
         );
+    }
+
+    public function testFailingUpdate()
+    {
+        $dbh = new PDO('sqlite::memory:');
+        $migrator = new Migrator($dbh, '2018010101');
+        $migrator->init(
+            [
+                'CREATE TABLE foo (a INTEGER NOT NULL)',
+            ]
+        );
+        $this->assertSame('2018010101', $migrator->getCurrentVersion());
+        $migrator = new Migrator($dbh, '2018010102');
+        $this->assertTrue($migrator->isUpdateRequired());
+        $migrator->addUpdate(
+            '2018010101',
+            '2018010102',
+            [
+                'ALTER TABLE bar RENAME TO _bar',
+            ]
+        );
+        try {
+            $migrator->update();
+            $this->fail();
+        } catch (PDOException $e) {
+            $this->assertSame('2018010101', $migrator->getCurrentVersion());
+        }
     }
 }
