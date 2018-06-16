@@ -37,6 +37,26 @@ initialize the database on fresh installations of the application.
 With this class you can create an `update()` method that triggers the 
 migrations.
 
+# Use
+
+You can use [Composer](https://getcomposer.org/):
+
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://git.tuxed.net/fkooman/php-sqlite-migrate"
+        }
+    ],
+
+    ...
+
+    "require": {
+        "fkooman/sqlite-migrate": "dev-master"
+
+        ...
+
+    }
+
 # API
 
 Embed the `Migrator` class in your database class to take care of table 
@@ -107,3 +127,8 @@ another update, from the previous version to the next, e.g.:
 
 Now from any state in the history of the database you can migrate to the 
 latest version.
+
+# License
+
+[MIT](LICENSE).
+
