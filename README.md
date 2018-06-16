@@ -5,8 +5,8 @@ SQLite is currently well tested.
 # Why
 
 Ability to modify an SQLite database scheme "in the field" to support software 
-updates through DEB and RPM packages as to not require a system administrator
-to manually run a database migration script.
+updates through DEB and RPM packages so as to not require a system 
+administrator to manually run a database migration script.
 
 **NOTE**: for (very) big migrations this may NOT be a good idea!
 
@@ -23,7 +23,8 @@ to manually run a database migration script.
   [MariaDB](https://mariadb.org/) and 
   [PostgreSQL](https://www.postgresql.org/).
 * Optionally can be used for "hot migrations", i.e. check if the schema needs 
-  to be updated on every HTTP request;
+  to be updated on every HTTP request and then perform the update;
+* Uses database transactions to run migration steps;
 * Implement rudimentary "locking" to prevent the migration to run multiple 
   times when application is under load.
 
@@ -31,100 +32,160 @@ to manually run a database migration script.
 
 Of course "hot migrations" are not reasonable when you have a million rows in
 your database, but it SHOULD still work. It is recommended to only update in
-service windows in any case.
+a maintenance windows in any case.
 
 # Assumptions
 
-We assume you have a SQLite database somewhere with some tables in it. That's
-it. Ideally you interface with your database through one class. This way you
-can add an `update()` method to it that calls `Migrator::update`.
+We assume you have a SQLite database somewhere with some tables in it, or not 
+yet when you start a new application. That's it. Ideally you interface with 
+your database through one class. This way you can add `init()` and `update()` 
+to it. See [API](#api) below.
 
 # Versions
 
 The versions consist of a string of 10 digits. It makes sense to encode the 
 current date in them with an additional 2 digit sequence number. The 
 recommended format is `YYYYMMDDXX` where `XX` is the sequence that starts at 
-`01` for the first version of that day. An example: `2018061503` for the 
+`00` for the first version of that day. An example: `2018061502` for the 
 third schema version on June 15th in 2018.
 
-Internally the application uses `Migrator::NO_VERSION` for when no version 
-table is available (yet). The value of `NO_VERSION` is `0000000000`.
+Internally the library uses `Migrator::NO_VERSION` for when no version table is 
+available (yet). The value of `NO_VERSION` is `0000000000`.
 
 # API
 
-Embed the `Migrator` class in your database class to take care of schema 
-updates. In the example below we start with a database without any version 
-information. We want to add this and immediately perform an update to the 
-schema:
+We assume you have a database class where we'll define an `init()` and 
+`update()` method. The `init()` is used during application installation to 
+initialize the database. The `init()` function will always contain the most up 
+to data database schema with the version matching `SCHEMA_VERSION` as used 
+below. The `update()` method contains the required update steps to reach *this* 
+schema version if an old schema version is currently deployed.
 
     <?php
-    require_once 'src/Migrator.php';
 
     use fkooman\SqliteMigrate\Migrator;
 
-    $dbh = new PDO('sqlite:db.sqlite');
-    $dbh->exec('CREATE TABLE foo (a INTEGER NOT NULL)');
-    $dbh->exec('INSERT INTO foo (a) VALUES(3)');
+    class DbStorage
+    {
+        const SCHEMA_VERSION = '2018061001';
 
-     // the version of the database your application *expects*
-    $m = new Migrator($dbh, '2018061501');
+        /** @var \PDO */
+        private $dbh;
 
-    if ($m->isUpdateRequired()) {
-        $m->addUpdate(
-            Migrator::NO_VERSION,
-            '2018061501',
+        /** @var \fkooman\SqliteMigrate\Migrator */
+        private $migrator;
+
+        public function __construct(PDO $dbh)
+        {
+            $this->dbh = $dbh;
+            $this->migrator = new Migrator($dbh, self::SCHEMA_VERSION);
+        }
+
+        /**
+         * Call this when you install your application, this happens only once.
+         */
+        public function init()
+        {
+            $this->migrator->init(
+                [
+                    'CREATE TABLE foo (a INTEGER NOT NULL)',
+                ]
+            );
+        }
+
+        /**
+         * Call this every time. If there is nothing to update it will only
+         * perform 1 SELECT query...
+         */
+        public function update()
+        {
+            $this->migrator->update();
+        }
+    }
+
+In the future if you want to update the schema, what you'll do is increment the 
+`SCHEMA_VERSION`, make sure the `init()` method creates this version of the 
+schema and define an update step in the `update()` method. Suppose the new 
+version of the schema is `2018061601` then you can define this update:
+
+    <?php 
+
+    // ...
+
+    const SCHEMA_VERSION = '2018061601';
+
+    // ...
+
+    public function init()
+    {
+        $this->migrator->init(
             [
-                // add column "b"
+                'CREATE TABLE foo (a INTEGER NOT NULL, b INTEGER DEFAULT 0)',
+            ]
+        );
+    }
+
+    public function update()
+    {
+        $this->migrator->addUpdate(
+            '2018061001',
+            '2018061601',
+            [
                 'ALTER TABLE foo RENAME TO _foo',
                 'CREATE TABLE foo (a INTEGER NOT NULL, b INTEGER DEFAULT 0)',
                 'INSERT INTO foo (a) SELECT a FROM _foo',
                 'DROP TABLE _foo',
             ]
         );
-        $m->update();
+        $this->migrator->update();
     }
 
-If in the future you want to perform another schema update, you leave the above 
-as is, but change the version in the constructor to the new version and add 
-another update, from the previous version to the next, e.g.:
+If you deployed your application initially without any schema version, you 
+also need an update from the schema without version to one with version:
 
     <?php
 
-    //
     // ...
-    // 
-    // NOTE the latest version ---------------------vvvvvvvvvv
-    $m = new Migrator($dbh, '2018061601');
-    if ($m->isUpdateRequired()) {
-        $m->addUpdate(
+
+    const SCHEMA_VERSION = '2018061601';
+
+    // ...
+
+    public function update()
+    {
+        $this->migrator->addUpdate(
             Migrator::NO_VERSION,
-            '2018061501',
+            '2018061001',
+            []
+        );
+        $this->migrator->addUpdate(
+            '2018061001',
+            '2018061601',
             [
-                // add column "b"
                 'ALTER TABLE foo RENAME TO _foo',
                 'CREATE TABLE foo (a INTEGER NOT NULL, b INTEGER DEFAULT 0)',
                 'INSERT INTO foo (a) SELECT a FROM _foo',
                 'DROP TABLE _foo',
             ]
         );
-        $m->addUpdate(
-            '2018061501',
-            '2018061601',
-            [
-                // add column "c" as well
-                'ALTER TABLE foo RENAME TO _foo',
-                'CREATE TABLE foo (a INTEGER NOT NULL, b INTEGER DEFAULT 0, c BOOLEAN DEFAULT 1)',
-                'INSERT INTO foo (a, b) SELECT a, b FROM _foo',
-                'DROP TABLE _foo',
-            ]
-        );
-        $m->update();
+        $this->migrator->update();
     }
 
-Now from any state in the history of the database you can migrate to the 
-latest version.
+Here, in this example we assumed that schema `2018061001` is the same as the 
+schema without version, so this particular update doesn't need to do anything, 
+except bring it under version control. After this, the next update can be 
+applied, exactly like before. The library will chain the updates and execute
+them one after the other.
+
+# Contact
+
+You can contact me with any questions or issues regarding this project. Drop
+me a line at [fkooman@tuxed.net](mailto:fkooman@tuxed.net).
+
+If you want to (responsibly) disclose a security issue you can also use the
+PGP key with key ID `9C5EDD645A571EB2` and fingerprint
+`6237 BAF1 418A 907D AA98  EAA7 9C5E DD64 5A57 1EB2`.
 
 # License
 
 [MIT](LICENSE).
-
