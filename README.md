@@ -48,7 +48,7 @@ recommended format is `YYYYMMDDXX` where `XX` is the sequence that starts at
 third schema version on June 15th in 2018.
 
 Internally the application uses `Migrator::NO_VERSION` for when no version 
-table is available (yet). The value of `NO_VERISON` is `0000000000`.
+table is available (yet). The value of `NO_VERSION` is `0000000000`.
 
 # API
 
