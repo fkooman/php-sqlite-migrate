@@ -103,6 +103,7 @@ class Migrator
             return;
         }
 
+        // this creates a "lock" as only one process will succeed in this...
         $this->dbh->exec('CREATE TABLE _migration_in_progress (dummy INTEGER)');
 
         // make sure we run through the migrations in order
@@ -127,6 +128,7 @@ class Migrator
             }
         }
 
+        // release "lock"
         $this->dbh->exec('DROP TABLE _migration_in_progress');
     }
 
@@ -138,6 +140,8 @@ class Migrator
         try {
             $sth = $this->dbh->query('SELECT current_version FROM version');
             $currentVersion = $sth->fetchColumn(0);
+            // XXX this can return false, possibly when the table was already
+            // created but nothing was in it...
             $sth->closeCursor();
 
             return $currentVersion;
