@@ -107,7 +107,7 @@ class Migrator
         $hasForeignKeys = '1' === $sth->fetch(PDO::FETCH_ASSOC)['foreign_keys'];
         $sth->closeCursor();
         if ($hasForeignKeys) {
-            $dbh->dbh->exec('PRAGMA foreign_keys = OFF');
+            $this->dbh->exec('PRAGMA foreign_keys = OFF');
         }
 
         // make sure we run through the migrations in order
@@ -134,7 +134,7 @@ class Migrator
 
         // enable "foreign_keys" PRAGMA if it was on
         if ($hasForeignKeys) {
-            $dbh->dbh->exec('PRAGMA foreign_keys = ON');
+            $this->dbh->exec('PRAGMA foreign_keys = ON');
         }
 
         // release "lock"

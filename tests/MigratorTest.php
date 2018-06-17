@@ -192,4 +192,44 @@ class MigratorTest extends TestCase
             $this->assertSame('2018010101', $migrator->getCurrentVersion());
         }
     }
+
+    public function testWithForeignKeys()
+    {
+        $dbh = new PDO('sqlite::memory:');
+        $dbh->exec('PRAGMA foreign_keys = ON');
+        $migrator = new Migrator($dbh, '2018010101');
+        $migrator->init(
+            [
+                'CREATE TABLE foo (a INTEGER NOT NULL)',
+            ]
+        );
+        $this->assertSame('2018010101', $migrator->getCurrentVersion());
+        $dbh->exec('INSERT INTO foo (a) VALUES(3)');
+
+        $migrator = new Migrator($dbh, '2018010102');
+        $this->assertTrue($migrator->isUpdateRequired());
+        $migrator->addUpdate(
+            '2018010101',
+            '2018010102',
+            [
+                'ALTER TABLE foo RENAME TO _foo',
+                'CREATE TABLE foo (a INTEGER NOT NULL, b BOOLEAN DEFAULT 0)',
+                'INSERT INTO foo (a) SELECT a FROM _foo',
+                'DROP TABLE _foo',
+            ]
+        );
+        $migrator->update();
+        $this->assertSame('2018010102', $migrator->getCurrentVersion());
+        $this->assertFalse($migrator->isUpdateRequired());
+        $sth = $dbh->query('SELECT * FROM foo');
+        $this->assertSame(
+            [
+                [
+                    'a' => '3',
+                    'b' => '0',
+                ],
+            ],
+            $sth->fetchAll(PDO::FETCH_ASSOC)
+        );
+    }
 }
