@@ -49,8 +49,7 @@ class Migrator
     {
         $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $this->dbh = $dbh;
-        self::validateSchemaVersion($schemaVersion);
-        $this->schemaVersion = $schemaVersion;
+        $this->schemaVersion = self::validateSchemaVersion($schemaVersion);
     }
 
     /**
@@ -83,9 +82,13 @@ class Migrator
      */
     public function addUpdate($fromVersion, $toVersion, array $queryList)
     {
-        self::validateSchemaVersion($fromVersion);
-        self::validateSchemaVersion($toVersion);
-        $this->updateList[\sprintf('%s:%s', $fromVersion, $toVersion)] = $queryList;
+        $fromToVersion = \sprintf(
+            '%s:%s',
+            self::validateSchemaVersion($fromVersion),
+            self::validateSchemaVersion($toVersion)
+        );
+
+        $this->updateList[$fromToVersion] = $queryList;
     }
 
     /**
@@ -175,12 +178,14 @@ class Migrator
     /**
      * @param string $schemaVersion
      *
-     * @return void
+     * @return string
      */
     private static function validateSchemaVersion($schemaVersion)
     {
         if (1 !== \preg_match('/^[0-9]{10}$/', $schemaVersion)) {
             throw new RangeException('schemaVersion must be 10 a digit string');
         }
+
+        return $schemaVersion;
     }
 }
