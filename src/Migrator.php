@@ -102,6 +102,14 @@ class Migrator
         // this creates a "lock" as only one process will succeed in this...
         $this->dbh->exec('CREATE TABLE _migration_in_progress (dummy INTEGER)');
 
+        // disable "foreign_keys" PRAGMA if it is on
+        $sth = $this->dbh->query('PRAGMA foreign_keys');
+        $hasForeignKeys = '1' === $sth->fetch(PDO::FETCH_ASSOC)['foreign_keys'];
+        $sth->closeCursor();
+        if ($hasForeignKeys) {
+            $dbh->dbh->exec('PRAGMA foreign_keys = OFF');
+        }
+
         // make sure we run through the migrations in order
         \ksort($this->updateList);
         foreach ($this->updateList as $fromTo => $queryList) {
@@ -122,6 +130,11 @@ class Migrator
                     throw $e;
                 }
             }
+        }
+
+        // enable "foreign_keys" PRAGMA if it was on
+        if ($hasForeignKeys) {
+            $dbh->dbh->exec('PRAGMA foreign_keys = ON');
         }
 
         // release "lock"
