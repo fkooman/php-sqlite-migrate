@@ -49,9 +49,7 @@ class Migrator
     {
         $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $this->dbh = $dbh;
-        if (1 !== \preg_match('/^[0-9]{10}$/', $schemaVersion)) {
-            throw new RangeException('schemaVersion must be 10 a digit string');
-        }
+        self::validateSchemaVersion($schemaVersion);
         $this->schemaVersion = $schemaVersion;
     }
 
@@ -85,11 +83,9 @@ class Migrator
      */
     public function addUpdate($fromVersion, $toVersion, array $queryList)
     {
-        $fromToVersion = \sprintf('%s:%s', $fromVersion, $toVersion);
-        if (1 !== \preg_match('/^[0-9]{10}:[0-9]{10}$/', $fromToVersion)) {
-            throw new RangeException('fromVersion and toVersion must be 10 digit strings');
-        }
-        $this->updateList[$fromToVersion] = $queryList;
+        self::validateSchemaVersion($fromVersion);
+        self::validateSchemaVersion($toVersion);
+        $this->updateList[\sprintf('%s:%s', $fromVersion, $toVersion)] = $queryList;
     }
 
     /**
@@ -161,5 +157,17 @@ class Migrator
     {
         $this->dbh->exec('CREATE TABLE IF NOT EXISTS version (current_version TEXT NOT NULL)');
         $this->dbh->exec(\sprintf("INSERT INTO version (current_version) VALUES('%s')", $schemaVersion));
+    }
+
+    /**
+     * @param string $schemaVersion
+     *
+     * @return void
+     */
+    private static function validateSchemaVersion($schemaVersion)
+    {
+        if (1 !== \preg_match('/^[0-9]{10}$/', $schemaVersion)) {
+            throw new RangeException('schemaVersion must be 10 a digit string');
+        }
     }
 }
