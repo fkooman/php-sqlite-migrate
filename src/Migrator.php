@@ -27,6 +27,7 @@ namespace fkooman\SqliteMigrate;
 use PDO;
 use PDOException;
 use RangeException;
+use RuntimeException;
 
 class Migrator
 {
@@ -47,6 +48,10 @@ class Migrator
      */
     public function __construct(PDO $dbh, $schemaVersion)
     {
+        if ('sqlite' !== $dbh->getAttribute(PDO::ATTR_DRIVER_NAME)) {
+            // we only support sqlite
+            throw new RuntimeException('only SQLite is supported');
+        }
         $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $this->dbh = $dbh;
         $this->schemaVersion = self::validateSchemaVersion($schemaVersion);
@@ -105,9 +110,9 @@ class Migrator
         // this creates a "lock" as only one process will succeed in this...
         $this->dbh->exec('CREATE TABLE _migration_in_progress (dummy INTEGER)');
 
-        // disable "foreign_keys" PRAGMA if it is on
+        // disable "foreign_keys" if they were on...
         $sth = $this->dbh->query('PRAGMA foreign_keys');
-        $hasForeignKeys = '1' === $sth->fetch(PDO::FETCH_ASSOC)['foreign_keys'];
+        $hasForeignKeys = '1' === $sth->fetchColumn(0);
         $sth->closeCursor();
         if ($hasForeignKeys) {
             $this->dbh->exec('PRAGMA foreign_keys = OFF');
@@ -135,7 +140,7 @@ class Migrator
             }
         }
 
-        // enable "foreign_keys" PRAGMA if it was on
+        // enable "foreign_keys" if they were on...
         if ($hasForeignKeys) {
             $this->dbh->exec('PRAGMA foreign_keys = ON');
         }
