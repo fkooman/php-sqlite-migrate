@@ -1,6 +1,5 @@
 Very simple library written in PHP that can assist with database migrations for 
-[SQLite](https://www.sqlite.org/index.html) and possibly other databases. Only 
-SQLite is currently well tested.
+[SQLite](https://www.sqlite.org/index.html).
 
 # Why
 
@@ -19,9 +18,7 @@ administrator to manually run a database migration script.
   and the latest version;
 * No need to run through all schema updates on application install. The 
   application can always install the latest schema;
-* Uses `PDO`, so other databases MAY work. Some testing was done with 
-  [MariaDB](https://mariadb.org/) and 
-  [PostgreSQL](https://www.postgresql.org/).
+* Uses `PDO` database abstraction layer;
 * Optionally can be used for "hot migrations", i.e. check if the schema needs 
   to be updated on every HTTP request and then perform the update;
 * Uses database transactions to run migration steps;
