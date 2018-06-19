@@ -88,11 +88,7 @@ class Migration
         // this creates a "lock" as only one process will succeed in this...
         $this->dbh->exec('CREATE TABLE _migration_in_progress (dummy INTEGER)');
 
-        // disable "foreign_keys" if they were on...
-        $sth = $this->dbh->query('PRAGMA foreign_keys');
-        $hasForeignKeys = '1' === $sth->fetchColumn(0);
-        $sth->closeCursor();
-        if ($hasForeignKeys) {
+        if ($hasForeignKeys = $this->hasForeignKeys()) {
             $this->dbh->exec('PRAGMA foreign_keys = OFF');
         }
 
@@ -104,19 +100,18 @@ class Migration
         foreach ($migrationList as $migrationFile) {
             $fromTo = \basename($migrationFile, '.migration');
             list($fromVersion, $toVersion) = \explode('_', $fromTo);
+            // XXX input validate fromVersion, toVersion
             if ($fromVersion === $currentVersion && $fromVersion !== $this->schemaVersion) {
                 try {
                     $this->dbh->beginTransaction();
                     $this->dbh->exec(\sprintf("DELETE FROM version WHERE current_version = '%s'", $fromVersion));
-
                     $this->runQueriesFromFile(\sprintf('%s/%s.migration', $this->schemaDir, $fromTo));
-
                     $this->dbh->exec(\sprintf("INSERT INTO version (current_version) VALUES('%s')", $toVersion));
                     $this->dbh->commit();
                     $currentVersion = $toVersion;
                 } catch (PDOException $e) {
                     $this->dbh->rollback();
-
+                    // XXX we have to renable FKs, and drop table migration in progress
                     throw $e;
                 }
             }
@@ -132,7 +127,9 @@ class Migration
 
         $currentVersion = $this->getCurrentVersion();
         if ($currentVersion !== $this->schemaVersion) {
-            throw new MigrationException(\sprintf('unable to upgrade to "%s", required migrations not available', $this->schemaVersion));
+            throw new MigrationException(
+                \sprintf('unable to upgrade to "%s", not all required migrations are available', $this->schemaVersion)
+            );
         }
 
         return true;
@@ -168,7 +165,7 @@ class Migration
      */
     private function createVersionTable($schemaVersion)
     {
-        $this->dbh->exec('CREATE TABLE IF NOT EXISTS version (current_version TEXT NOT NULL)');
+        $this->dbh->exec('CREATE TABLE version (current_version TEXT NOT NULL)');
         $this->dbh->exec(\sprintf("INSERT INTO version (current_version) VALUES('%s')", $schemaVersion));
     }
 
@@ -202,5 +199,17 @@ class Migration
                 $this->dbh->exec($dbQuery);
             }
         }
+    }
+
+    /**
+     * @return bool
+     */
+    private function hasForeignKeys()
+    {
+        $sth = $this->dbh->query('PRAGMA foreign_keys');
+        $hasForeignKeys = '1' === $sth->fetchColumn(0);
+        $sth->closeCursor();
+
+        return $hasForeignKeys;
     }
 }
