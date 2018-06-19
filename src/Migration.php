@@ -39,14 +39,15 @@ class Migration
     /** @var string */
     private $schemaVersion;
 
-    /** @var array<string, array> */
-    private $migrationList = [];
+    /** @var string */
+    private $schemaDir;
 
     /**
      * @param \PDO   $dbh
+     * @param string $schemaDir
      * @param string $schemaVersion
      */
-    public function __construct(PDO $dbh, $schemaVersion)
+    public function __construct(PDO $dbh, $schemaDir, $schemaVersion)
     {
         if ('sqlite' !== $dbh->getAttribute(PDO::ATTR_DRIVER_NAME)) {
             // we only support sqlite
@@ -54,19 +55,16 @@ class Migration
         }
         $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $this->dbh = $dbh;
+        $this->schemaDir = $schemaDir;
         $this->schemaVersion = self::validateSchemaVersion($schemaVersion);
     }
 
     /**
-     * @param array $queryList
-     *
      * @return void
      */
-    public function init(array $queryList = [])
+    public function init()
     {
-        foreach ($queryList as $dbQuery) {
-            $this->dbh->exec($dbQuery);
-        }
+        $this->runQueriesFromFile(\sprintf('%s/%s.schema', $this->schemaDir, $this->schemaVersion));
         $this->createVersionTable($this->schemaVersion);
     }
 
@@ -76,24 +74,6 @@ class Migration
     public function isRequired()
     {
         return $this->schemaVersion !== $this->getCurrentVersion();
-    }
-
-    /**
-     * @param string        $fromVersion
-     * @param string        $toVersion
-     * @param array<string> $queryList
-     *
-     * @return void
-     */
-    public function addMigration($fromVersion, $toVersion, array $queryList)
-    {
-        $fromToVersion = \sprintf(
-            '%s:%s',
-            self::validateSchemaVersion($fromVersion),
-            self::validateSchemaVersion($toVersion)
-        );
-
-        $this->migrationList[$fromToVersion] = $queryList;
     }
 
     /**
@@ -118,17 +98,18 @@ class Migration
             $this->dbh->exec('PRAGMA foreign_keys = OFF');
         }
 
-        // make sure we run through the migrations in order
-        \ksort($this->migrationList);
-        foreach ($this->migrationList as $fromTo => $queryList) {
+        // XXX error handling
+        $migrationList = @\glob(\sprintf('%s/*:*.migration', $this->schemaDir));
+        foreach ($migrationList as $migrationFile) {
+            $fromTo = \basename($migrationFile, '.migration');
             list($fromVersion, $toVersion) = \explode(':', $fromTo);
-            if ($fromVersion === $currentVersion) {
+            if ($fromVersion === $currentVersion && $fromVersion !== $this->schemaVersion) {
                 try {
                     $this->dbh->beginTransaction();
                     $this->dbh->exec(\sprintf("DELETE FROM version WHERE current_version = '%s'", $fromVersion));
-                    foreach ($queryList as $dbQuery) {
-                        $this->dbh->exec($dbQuery);
-                    }
+
+                    $this->runQueriesFromFile(\sprintf('%s/%s.migration', $this->schemaDir, $fromTo));
+
                     $this->dbh->exec(\sprintf("INSERT INTO version (current_version) VALUES('%s')", $toVersion));
                     $this->dbh->commit();
                     $currentVersion = $toVersion;
@@ -138,6 +119,13 @@ class Migration
                     throw $e;
                 }
             }
+        }
+
+        $currentVersion = $this->getCurrentVersion();
+
+        if ($currentVersion !== $this->schemaVersion) {
+            // XXX exception type... should we move this later after unlocking again?!
+            throw new RuntimeException(\sprintf('unable to complete upgrade to "%s"', $this->schemaVersion));
         }
 
         // enable "foreign_keys" if they were on...
@@ -192,5 +180,23 @@ class Migration
         }
 
         return $schemaVersion;
+    }
+
+    /**
+     * @param string $filePath
+     *
+     * @return void
+     */
+    private function runQueriesFromFile($filePath)
+    {
+        $fileContent = @\file_get_contents($filePath);
+        if (false === $fileContent) {
+            throw new RuntimeException(\sprintf('unable to read "%s"', $filePath));
+        }
+        foreach (\explode("\n", $fileContent) as $dbQuery) {
+            if (0 !== \strlen(\trim($dbQuery))) {
+                $this->dbh->exec($dbQuery);
+            }
+        }
     }
 }
