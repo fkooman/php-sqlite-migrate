@@ -50,7 +50,7 @@ class Migration
     public function __construct(PDO $dbh, $schemaDir, $schemaVersion)
     {
         if ('sqlite' !== $dbh->getAttribute(PDO::ATTR_DRIVER_NAME)) {
-            // we only support sqlite
+            // we only support SQLite for now
             throw new RuntimeException('only SQLite is supported');
         }
         $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -98,11 +98,14 @@ class Migration
             $this->dbh->exec('PRAGMA foreign_keys = OFF');
         }
 
-        // XXX error handling
-        $migrationList = @\glob(\sprintf('%s/*:*.migration', $this->schemaDir));
+        $migrationList = @\glob(\sprintf('%s/*_*.migration', $this->schemaDir));
+        if (false === $migrationList) {
+            throw new RuntimeException(\sprintf('unable to read schema directory "%s"', $this->schemaDir));
+        }
+
         foreach ($migrationList as $migrationFile) {
             $fromTo = \basename($migrationFile, '.migration');
-            list($fromVersion, $toVersion) = \explode(':', $fromTo);
+            list($fromVersion, $toVersion) = \explode('_', $fromTo);
             if ($fromVersion === $currentVersion && $fromVersion !== $this->schemaVersion) {
                 try {
                     $this->dbh->beginTransaction();
@@ -125,7 +128,7 @@ class Migration
 
         if ($currentVersion !== $this->schemaVersion) {
             // XXX exception type... should we move this later after unlocking again?!
-            throw new RuntimeException(\sprintf('unable to complete upgrade to "%s"', $this->schemaVersion));
+            throw new RuntimeException(\sprintf('unable to upgrade to "%s"', $this->schemaVersion));
         }
 
         // enable "foreign_keys" if they were on...
