@@ -24,39 +24,39 @@
 
 namespace fkooman\SqliteMigrate\Tests;
 
-use fkooman\SqliteMigrate\Migrator;
+use fkooman\SqliteMigrate\Migration;
 use PDO;
 use PDOException;
 use PHPUnit\Framework\TestCase;
 
-class MigratorTest extends TestCase
+class MigrationTest extends TestCase
 {
     public function testInit()
     {
-        $migrator = new Migrator(new PDO('sqlite::memory:'), '2018010101');
-        $migrator->init(
+        $migration = new Migration(new PDO('sqlite::memory:'), '2018010101');
+        $migration->init(
             [
                 'CREATE TABLE foo (a INTEGER NOT NULL)',
             ]
         );
-        $this->assertSame('2018010101', $migrator->getCurrentVersion());
+        $this->assertSame('2018010101', $migration->getCurrentVersion());
     }
 
     public function testSimpleMigration()
     {
         $dbh = new PDO('sqlite::memory:');
-        $migrator = new Migrator($dbh, '2018010101');
-        $migrator->init(
+        $migration = new Migration($dbh, '2018010101');
+        $migration->init(
             [
                 'CREATE TABLE foo (a INTEGER NOT NULL)',
             ]
         );
-        $this->assertSame('2018010101', $migrator->getCurrentVersion());
+        $this->assertSame('2018010101', $migration->getCurrentVersion());
         $dbh->exec('INSERT INTO foo (a) VALUES(3)');
 
-        $migrator = new Migrator($dbh, '2018010102');
-        $this->assertTrue($migrator->isUpdateRequired());
-        $migrator->addUpdate(
+        $migration = new Migration($dbh, '2018010102');
+        $this->assertTrue($migration->isRequired());
+        $migration->addMigration(
             '2018010101',
             '2018010102',
             [
@@ -66,9 +66,9 @@ class MigratorTest extends TestCase
                 'DROP TABLE _foo',
             ]
         );
-        $migrator->update();
-        $this->assertSame('2018010102', $migrator->getCurrentVersion());
-        $this->assertFalse($migrator->isUpdateRequired());
+        $migration->run();
+        $this->assertSame('2018010102', $migration->getCurrentVersion());
+        $this->assertFalse($migration->isRequired());
         $sth = $dbh->query('SELECT * FROM foo');
         $this->assertSame(
             [
@@ -84,17 +84,17 @@ class MigratorTest extends TestCase
     public function testMultiMigration()
     {
         $dbh = new PDO('sqlite::memory:');
-        $migrator = new Migrator($dbh, '2018010101');
-        $migrator->init(
+        $migration = new Migration($dbh, '2018010101');
+        $migration->init(
             [
                 'CREATE TABLE foo (a INTEGER NOT NULL)',
             ]
         );
-        $this->assertSame('2018010101', $migrator->getCurrentVersion());
+        $this->assertSame('2018010101', $migration->getCurrentVersion());
         $dbh->exec('INSERT INTO foo (a) VALUES(3)');
 
-        $migrator = new Migrator($dbh, '2018010103');
-        $migrator->addUpdate(
+        $migration = new Migration($dbh, '2018010103');
+        $migration->addMigration(
             '2018010101',
             '2018010102',
             [
@@ -105,7 +105,7 @@ class MigratorTest extends TestCase
             ]
         );
 
-        $migrator->addUpdate(
+        $migration->addMigration(
             '2018010102',
             '2018010103',
             [
@@ -116,8 +116,8 @@ class MigratorTest extends TestCase
             ]
         );
 
-        $migrator->update();
-        $this->assertSame('2018010103', $migrator->getCurrentVersion());
+        $migration->run();
+        $this->assertSame('2018010103', $migration->getCurrentVersion());
         $sth = $dbh->query('SELECT * FROM foo');
         $this->assertSame(
             [
@@ -139,10 +139,10 @@ class MigratorTest extends TestCase
         $dbh = new PDO('sqlite::memory:');
         $dbh->exec('CREATE TABLE foo (a INTEGER NOT NULL)');
         $dbh->exec('INSERT INTO foo (a) VALUES(3)');
-        $migrator = new Migrator($dbh, '2018010101');
+        $migration = new Migration($dbh, '2018010101');
 
-        $migrator->addUpdate(
-            Migrator::NO_VERSION,
+        $migration->addMigration(
+            Migration::NO_VERSION,
             '2018010101',
             [
                 'ALTER TABLE foo RENAME TO _foo',
@@ -151,9 +151,9 @@ class MigratorTest extends TestCase
                 'DROP TABLE _foo',
             ]
         );
-        $this->assertSame('0000000000', $migrator->getCurrentVersion());
-        $migrator->update();
-        $this->assertSame('2018010101', $migrator->getCurrentVersion());
+        $this->assertSame('0000000000', $migration->getCurrentVersion());
+        $migration->run();
+        $this->assertSame('2018010101', $migration->getCurrentVersion());
         $sth = $dbh->query('SELECT * FROM foo');
         $this->assertSame(
             [
@@ -169,16 +169,16 @@ class MigratorTest extends TestCase
     public function testFailingUpdate()
     {
         $dbh = new PDO('sqlite::memory:');
-        $migrator = new Migrator($dbh, '2018010101');
-        $migrator->init(
+        $migration = new Migration($dbh, '2018010101');
+        $migration->init(
             [
                 'CREATE TABLE foo (a INTEGER NOT NULL)',
             ]
         );
-        $this->assertSame('2018010101', $migrator->getCurrentVersion());
-        $migrator = new Migrator($dbh, '2018010102');
-        $this->assertTrue($migrator->isUpdateRequired());
-        $migrator->addUpdate(
+        $this->assertSame('2018010101', $migration->getCurrentVersion());
+        $migration = new Migration($dbh, '2018010102');
+        $this->assertTrue($migration->isRequired());
+        $migration->addMigration(
             '2018010101',
             '2018010102',
             [
@@ -186,10 +186,10 @@ class MigratorTest extends TestCase
             ]
         );
         try {
-            $migrator->update();
+            $migration->run();
             $this->fail();
         } catch (PDOException $e) {
-            $this->assertSame('2018010101', $migrator->getCurrentVersion());
+            $this->assertSame('2018010101', $migration->getCurrentVersion());
         }
     }
 
@@ -197,18 +197,18 @@ class MigratorTest extends TestCase
     {
         $dbh = new PDO('sqlite::memory:');
         $dbh->exec('PRAGMA foreign_keys = ON');
-        $migrator = new Migrator($dbh, '2018010101');
-        $migrator->init(
+        $migration = new Migration($dbh, '2018010101');
+        $migration->init(
             [
                 'CREATE TABLE foo (a INTEGER NOT NULL)',
             ]
         );
-        $this->assertSame('2018010101', $migrator->getCurrentVersion());
+        $this->assertSame('2018010101', $migration->getCurrentVersion());
         $dbh->exec('INSERT INTO foo (a) VALUES(3)');
 
-        $migrator = new Migrator($dbh, '2018010102');
-        $this->assertTrue($migrator->isUpdateRequired());
-        $migrator->addUpdate(
+        $migration = new Migration($dbh, '2018010102');
+        $this->assertTrue($migration->isRequired());
+        $migration->addMigration(
             '2018010101',
             '2018010102',
             [
@@ -218,9 +218,9 @@ class MigratorTest extends TestCase
                 'DROP TABLE _foo',
             ]
         );
-        $migrator->update();
-        $this->assertSame('2018010102', $migrator->getCurrentVersion());
-        $this->assertFalse($migrator->isUpdateRequired());
+        $migration->run();
+        $this->assertSame('2018010102', $migration->getCurrentVersion());
+        $this->assertFalse($migration->isRequired());
         $sth = $dbh->query('SELECT * FROM foo');
         $this->assertSame(
             [

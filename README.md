@@ -35,8 +35,8 @@ a maintenance windows in any case.
 
 We assume you have a SQLite database somewhere with some tables in it, or not 
 yet when you start a new application. That's it. Ideally you interface with 
-your database through one class. This way you can add `init()` and `update()` 
-to it. See [API](#api) below.
+your database through one class. This way you can add the methods `init()` and 
+`migrate()` to them. See [API](#api) below.
 
 # Versions
 
@@ -46,21 +46,21 @@ recommended format is `YYYYMMDDXX` where `XX` is the sequence that starts at
 `00` for the first version of that day. An example: `2018061502` for the 
 third schema version on June 15th in 2018.
 
-Internally the library uses `Migrator::NO_VERSION` for when no version table is 
+Internally the library uses `Migration::NO_VERSION` for when no version table is 
 available (yet). The value of `NO_VERSION` is `0000000000`.
 
 # API
 
 We assume you have a database class where we'll define an `init()` and 
-`update()` method. The `init()` is used during application installation to 
+`migrate()` method. The `init()` is used during application installation to 
 initialize the database. The `init()` function will always contain the most up 
 to data database schema with the version matching `SCHEMA_VERSION` as used 
-below. The `update()` method contains the required update steps to reach *this* 
-schema version if an old schema version is currently deployed.
+below. The `migrate()` method contains the required update steps to reach 
+*this* schema version if an old schema version is currently deployed.
 
     <?php
 
-    use fkooman\SqliteMigrate\Migrator;
+    use fkooman\SqliteMigrate\Migration;
 
     class DbStorage
     {
@@ -69,13 +69,13 @@ schema version if an old schema version is currently deployed.
         /** @var \PDO */
         private $dbh;
 
-        /** @var \fkooman\SqliteMigrate\Migrator */
-        private $migrator;
+        /** @var \fkooman\SqliteMigrate\Migration */
+        private $migration;
 
         public function __construct(PDO $dbh)
         {
             $this->dbh = $dbh;
-            $this->migrator = new Migrator($dbh, self::SCHEMA_VERSION);
+            $this->migration = new Migration($dbh, self::SCHEMA_VERSION);
         }
 
         /**
@@ -83,7 +83,7 @@ schema version if an old schema version is currently deployed.
          */
         public function init()
         {
-            $this->migrator->init(
+            $this->migration->init(
                 [
                     'CREATE TABLE foo (a INTEGER NOT NULL)',
                 ]
@@ -94,15 +94,15 @@ schema version if an old schema version is currently deployed.
          * Call this every time. If there is nothing to update it will only
          * perform 1 SELECT query...
          */
-        public function update()
+        public function migrate()
         {
-            $this->migrator->update();
+            $this->migration->run();
         }
     }
 
 In the future if you want to update the schema, what you'll do is increment the 
 `SCHEMA_VERSION`, make sure the `init()` method creates this version of the 
-schema and define an update step in the `update()` method. Suppose the new 
+schema and define an update step in the `run()` method. Suppose the new 
 version of the schema is `2018061601` then you can define this update:
 
     <?php 
@@ -115,16 +115,16 @@ version of the schema is `2018061601` then you can define this update:
 
     public function init()
     {
-        $this->migrator->init(
+        $this->migration->init(
             [
                 'CREATE TABLE foo (a INTEGER NOT NULL, b INTEGER DEFAULT 0)',
             ]
         );
     }
 
-    public function update()
+    public function migrate()
     {
-        $this->migrator->addUpdate(
+        $this->migration->addMigration(
             '2018061001',
             '2018061601',
             [
@@ -134,7 +134,7 @@ version of the schema is `2018061601` then you can define this update:
                 'DROP TABLE _foo',
             ]
         );
-        $this->migrator->update();
+        $this->migration->run();
     }
 
 If you deployed your application initially without any schema version, you 
@@ -148,14 +148,14 @@ also need an update from the schema without version to one with version:
 
     // ...
 
-    public function update()
+    public function migrate()
     {
-        $this->migrator->addUpdate(
-            Migrator::NO_VERSION,
+        $this->migration->addMigration(
+            Migration::NO_VERSION,
             '2018061001',
             []
         );
-        $this->migrator->addUpdate(
+        $this->migration->addMigration(
             '2018061001',
             '2018061601',
             [
@@ -165,7 +165,7 @@ also need an update from the schema without version to one with version:
                 'DROP TABLE _foo',
             ]
         );
-        $this->migrator->update();
+        $this->migration->run();
     }
 
 Here, in this example we assumed that schema `2018061001` is the same as the 

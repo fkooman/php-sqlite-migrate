@@ -29,7 +29,7 @@ use PDOException;
 use RangeException;
 use RuntimeException;
 
-class Migrator
+class Migration
 {
     const NO_VERSION = '0000000000';
 
@@ -40,7 +40,7 @@ class Migrator
     private $schemaVersion;
 
     /** @var array<string, array> */
-    private $updateList = [];
+    private $migrationList = [];
 
     /**
      * @param \PDO   $dbh
@@ -73,7 +73,7 @@ class Migrator
     /**
      * @return bool
      */
-    public function isUpdateRequired()
+    public function isRequired()
     {
         return $this->schemaVersion !== $this->getCurrentVersion();
     }
@@ -85,7 +85,7 @@ class Migrator
      *
      * @return void
      */
-    public function addUpdate($fromVersion, $toVersion, array $queryList)
+    public function addMigration($fromVersion, $toVersion, array $queryList)
     {
         $fromToVersion = \sprintf(
             '%s:%s',
@@ -93,13 +93,13 @@ class Migrator
             self::validateSchemaVersion($toVersion)
         );
 
-        $this->updateList[$fromToVersion] = $queryList;
+        $this->migrationList[$fromToVersion] = $queryList;
     }
 
     /**
      * @return void
      */
-    public function update()
+    public function run()
     {
         $currentVersion = $this->getCurrentVersion();
         if ($currentVersion === $this->schemaVersion) {
@@ -119,8 +119,8 @@ class Migrator
         }
 
         // make sure we run through the migrations in order
-        \ksort($this->updateList);
-        foreach ($this->updateList as $fromTo => $queryList) {
+        \ksort($this->migrationList);
+        foreach ($this->migrationList as $fromTo => $queryList) {
             list($fromVersion, $toVersion) = \explode(':', $fromTo);
             if ($fromVersion === $currentVersion) {
                 try {
