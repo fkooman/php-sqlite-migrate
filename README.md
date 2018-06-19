@@ -1,5 +1,5 @@
 Library written in PHP that can assist with 
-[SQLite]((https://www.sqlite.org/index.html) database migrations.
+[SQLite](https://www.sqlite.org/index.html) database migrations.
 
 # Why
 
