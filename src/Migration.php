@@ -98,20 +98,19 @@ class Migration
         }
 
         foreach ($migrationList as $migrationFile) {
-            $fromTo = \basename($migrationFile, '.migration');
-            list($fromVersion, $toVersion) = \explode('_', $fromTo);
-            // XXX input validate fromVersion, toVersion
+            $migrationVersion = \basename($migrationFile, '.migration');
+            list($fromVersion, $toVersion) = self::validateMigrationVersion($migrationVersion);
             if ($fromVersion === $currentVersion && $fromVersion !== $this->schemaVersion) {
                 try {
                     $this->dbh->beginTransaction();
                     $this->dbh->exec(\sprintf("DELETE FROM version WHERE current_version = '%s'", $fromVersion));
-                    $this->runQueriesFromFile(\sprintf('%s/%s.migration', $this->schemaDir, $fromTo));
+                    $this->runQueriesFromFile(\sprintf('%s/%s.migration', $this->schemaDir, $migrationVersion));
                     $this->dbh->exec(\sprintf("INSERT INTO version (current_version) VALUES('%s')", $toVersion));
                     $this->dbh->commit();
                     $currentVersion = $toVersion;
                 } catch (PDOException $e) {
                     $this->dbh->rollback();
-                    // XXX we have to renable FKs, and drop table migration in progress
+                    // XXX we have to renable FKs, and release lock
                     throw $e;
                 }
             }
@@ -170,20 +169,6 @@ class Migration
     }
 
     /**
-     * @param string $schemaVersion
-     *
-     * @return string
-     */
-    private static function validateSchemaVersion($schemaVersion)
-    {
-        if (1 !== \preg_match('/^[0-9]{10}$/', $schemaVersion)) {
-            throw new RangeException('schemaVersion must be 10 a digit string');
-        }
-
-        return $schemaVersion;
-    }
-
-    /**
      * @param string $filePath
      *
      * @return void
@@ -211,5 +196,33 @@ class Migration
         $sth->closeCursor();
 
         return $hasForeignKeys;
+    }
+
+    /**
+     * @param string $schemaVersion
+     *
+     * @return string
+     */
+    private static function validateSchemaVersion($schemaVersion)
+    {
+        if (1 !== \preg_match('/^[0-9]{10}$/', $schemaVersion)) {
+            throw new RangeException('schemaVersion must be 10 a digit string');
+        }
+
+        return $schemaVersion;
+    }
+
+    /**
+     * @param string $migrationVersion
+     *
+     * @return array<string>
+     */
+    private static function validateMigrationVersion($migrationVersion)
+    {
+        if (1 !== \preg_match('/^[0-9]{10}_[0-9]{10}$/', $migrationVersion)) {
+            throw new RangeException('migrationVersion must be two times a 10 digit string separated by an underscore');
+        }
+
+        return \explode('_', $migrationVersion);
     }
 }
