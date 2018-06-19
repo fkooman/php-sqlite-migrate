@@ -99,10 +99,6 @@ schema version.
     // directory. ONLY use this during application installation!
     $migration->init();
 
-    // check whether the currently deploy database schema is different from the
-    // latest version as specified in the constructor
-    $migration->isRequired();
-
     // run the migration when needed moving from the currently deployed schema
     // version to the version specified in the constructor by looking for 
     // migration files in the schema directory
@@ -117,10 +113,10 @@ in your `index.php` before using the database:
     if ($migration->run()) {
         echo "Migrated!";
     } else { 
-        ecoh "No migration was needed.";
+        echo "No migration was needed.";
     }
 
-The `run()` method returns a boolean, indicating whether or not a migration 
+The `run()` method returns a `boolean`, indicating whether or not a migration 
 was performed.
 
 # Contact
