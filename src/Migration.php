@@ -24,6 +24,7 @@
 
 namespace fkooman\SqliteMigrate;
 
+use Exception;
 use fkooman\SqliteMigrate\Exception\MigrationException;
 use PDO;
 use PDOException;
@@ -68,7 +69,9 @@ class Migration
      */
     public function init()
     {
-        $this->runQueriesFromFile(\sprintf('%s/%s.schema', $this->schemaDir, $this->schemaVersion));
+        $this->runQueries(
+            self::getQueriesFromFile(\sprintf('%s/%s.schema', $this->schemaDir, $this->schemaVersion))
+        );
         $this->createVersionTable($this->schemaVersion);
     }
 
@@ -85,39 +88,45 @@ class Migration
             return false;
         }
 
-        // this creates a "lock" as only one process will succeed in this...
-        $this->dbh->exec('CREATE TABLE _migration_in_progress (dummy INTEGER)');
-
-        if ($hasForeignKeys = $this->hasForeignKeys()) {
-            $this->dbh->exec('PRAGMA foreign_keys = OFF');
-        }
-
         $migrationList = @\glob(\sprintf('%s/*_*.migration', $this->schemaDir));
         if (false === $migrationList) {
             throw new RuntimeException(\sprintf('unable to read schema directory "%s"', $this->schemaDir));
         }
 
-        foreach ($migrationList as $migrationFile) {
-            $migrationVersion = \basename($migrationFile, '.migration');
-            list($fromVersion, $toVersion) = self::validateMigrationVersion($migrationVersion);
-            if ($fromVersion === $currentVersion && $fromVersion !== $this->schemaVersion) {
-                try {
-                    $this->dbh->beginTransaction();
-                    $this->dbh->exec(\sprintf("DELETE FROM version WHERE current_version = '%s'", $fromVersion));
-                    $this->runQueriesFromFile(\sprintf('%s/%s.migration', $this->schemaDir, $migrationVersion));
-                    $this->dbh->exec(\sprintf("INSERT INTO version (current_version) VALUES('%s')", $toVersion));
-                    $this->dbh->commit();
-                    $currentVersion = $toVersion;
-                } catch (PDOException $e) {
-                    $this->dbh->rollback();
-                    $this->finallyCompat($hasForeignKeys);
+        $hasForeignKeys = $this->lock();
 
-                    throw $e;
+        try {
+            foreach ($migrationList as $migrationFile) {
+                $migrationVersion = \basename($migrationFile, '.migration');
+                list($fromVersion, $toVersion) = self::validateMigrationVersion($migrationVersion);
+                if ($fromVersion === $currentVersion && $fromVersion !== $this->schemaVersion) {
+                    // get the queries before we start the transaction as we
+                    // ONLY want to deal with "PDOExceptions" once the
+                    // transacation started...
+                    $queryList = self::getQueriesFromFile(\sprintf('%s/%s.migration', $this->schemaDir, $migrationVersion));
+                    try {
+                        $this->dbh->beginTransaction();
+                        $this->dbh->exec(\sprintf("DELETE FROM version WHERE current_version = '%s'", $fromVersion));
+                        $this->runQueries($queryList);
+                        $this->dbh->exec(\sprintf("INSERT INTO version (current_version) VALUES('%s')", $toVersion));
+                        $this->dbh->commit();
+                        $currentVersion = $toVersion;
+                    } catch (PDOException $e) {
+                        // something went wrong with the SQL queries
+                        $this->dbh->rollback();
+
+                        throw $e;
+                    }
                 }
             }
+        } catch (Exception $e) {
+            // something went wrong that was not related to SQL queries
+            $this->unlock($hasForeignKeys);
+
+            throw $e;
         }
 
-        $this->finallyCompat($hasForeignKeys);
+        $this->unlock($hasForeignKeys);
 
         $currentVersion = $this->getCurrentVersion();
         if ($currentVersion !== $this->schemaVersion) {
@@ -153,11 +162,26 @@ class Migration
     }
 
     /**
+     * @return bool
+     */
+    private function lock()
+    {
+        // this creates a "lock" as only one process will succeed in this...
+        $this->dbh->exec('CREATE TABLE _migration_in_progress (dummy INTEGER)');
+
+        if ($hasForeignKeys = $this->hasForeignKeys()) {
+            $this->dbh->exec('PRAGMA foreign_keys = OFF');
+        }
+
+        return $hasForeignKeys;
+    }
+
+    /**
      * @param bool $hasForeignKeys
      *
      * @return void
      */
-    private function finallyCompat($hasForeignKeys)
+    private function unlock($hasForeignKeys)
     {
         // enable "foreign_keys" if they were on...
         if ($hasForeignKeys) {
@@ -179,17 +203,13 @@ class Migration
     }
 
     /**
-     * @param string $filePath
+     * @param array<string> $queryList
      *
      * @return void
      */
-    private function runQueriesFromFile($filePath)
+    private function runQueries(array $queryList)
     {
-        $fileContent = @\file_get_contents($filePath);
-        if (false === $fileContent) {
-            throw new RuntimeException(\sprintf('unable to read "%s"', $filePath));
-        }
-        foreach (\explode("\n", $fileContent) as $dbQuery) {
+        foreach ($queryList as $dbQuery) {
             if (0 !== \strlen(\trim($dbQuery))) {
                 $this->dbh->exec($dbQuery);
             }
@@ -206,6 +226,21 @@ class Migration
         $sth->closeCursor();
 
         return $hasForeignKeys;
+    }
+
+    /**
+     * @param string $filePath
+     *
+     * @return array<string>
+     */
+    private static function getQueriesFromFile($filePath)
+    {
+        $fileContent = @\file_get_contents($filePath);
+        if (false === $fileContent) {
+            throw new RuntimeException(\sprintf('unable to read "%s"', $filePath));
+        }
+
+        return \explode("\n", $fileContent);
     }
 
     /**
