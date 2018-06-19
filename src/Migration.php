@@ -24,6 +24,7 @@
 
 namespace fkooman\SqliteMigrate;
 
+use fkooman\SqliteMigrate\Exception\MigrationException;
 use PDO;
 use PDOException;
 use RangeException;
@@ -121,12 +122,6 @@ class Migration
             }
         }
 
-        $currentVersion = $this->getCurrentVersion();
-        if ($currentVersion !== $this->schemaVersion) {
-            // XXX exception type... should we move this later after unlocking again?!
-            throw new RuntimeException(\sprintf('unable to upgrade to "%s"', $this->schemaVersion));
-        }
-
         // enable "foreign_keys" if they were on...
         if ($hasForeignKeys) {
             $this->dbh->exec('PRAGMA foreign_keys = ON');
@@ -135,22 +130,28 @@ class Migration
         // release "lock"
         $this->dbh->exec('DROP TABLE _migration_in_progress');
 
+        $currentVersion = $this->getCurrentVersion();
+        if ($currentVersion !== $this->schemaVersion) {
+            throw new MigrationException(\sprintf('unable to upgrade to "%s", required migrations not available', $this->schemaVersion));
+        }
+
         return true;
     }
 
     /**
      * Gets the current version of the database schema.
      *
-     * @return false|string
+     * @return string
      */
     public function getCurrentVersion()
     {
         try {
             $sth = $this->dbh->query('SELECT current_version FROM version');
             $currentVersion = $sth->fetchColumn(0);
-            // XXX this can return false, possibly when the table was already
-            // created but nothing was in it...
             $sth->closeCursor();
+            if (false === $currentVersion) {
+                throw new MigrationException('unable to retrieve current version');
+            }
 
             return $currentVersion;
         } catch (PDOException $e) {
