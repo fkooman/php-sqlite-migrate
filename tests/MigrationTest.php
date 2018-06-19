@@ -55,10 +55,9 @@ class MigrationTest extends TestCase
         $dbh->exec('INSERT INTO foo (a) VALUES(3)');
 
         $migration = new Migration($dbh, $this->schemaDir, '2018010102');
-        $this->assertTrue($migration->isRequired());
-        $migration->run();
+        $this->assertTrue($migration->run());
         $this->assertSame('2018010102', $migration->getCurrentVersion());
-        $this->assertFalse($migration->isRequired());
+        $this->assertFalse($migration->run());
         $sth = $dbh->query('SELECT * FROM foo');
         $this->assertSame(
             [
@@ -124,9 +123,8 @@ class MigrationTest extends TestCase
         $migration->init();
         $this->assertSame('2018020201', $migration->getCurrentVersion());
         $migration = new Migration($dbh, $this->schemaDir, '2018020202');
-        $this->assertTrue($migration->isRequired());
         try {
-            $migration->run();
+            $this->assertTrue($migration->run());
             $this->fail();
         } catch (PDOException $e) {
             $this->assertSame('2018020201', $migration->getCurrentVersion());
@@ -143,10 +141,9 @@ class MigrationTest extends TestCase
         $dbh->exec('INSERT INTO foo (a) VALUES(3)');
 
         $migration = new Migration($dbh, $this->schemaDir, '2018010102');
-        $this->assertTrue($migration->isRequired());
-        $migration->run();
+        $this->assertTrue($migration->run());
         $this->assertSame('2018010102', $migration->getCurrentVersion());
-        $this->assertFalse($migration->isRequired());
+        $this->assertFalse($migration->run());
         $sth = $dbh->query('SELECT * FROM foo');
         $this->assertSame(
             [

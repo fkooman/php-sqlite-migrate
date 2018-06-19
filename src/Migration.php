@@ -43,9 +43,9 @@ class Migration
     private $schemaDir;
 
     /**
-     * @param \PDO   $dbh
-     * @param string $schemaDir
-     * @param string $schemaVersion
+     * @param \PDO   $dbh           database handle
+     * @param string $schemaDir     directory containing schema and migration files
+     * @param string $schemaVersion most recent database schema version
      */
     public function __construct(PDO $dbh, $schemaDir, $schemaVersion)
     {
@@ -60,6 +60,9 @@ class Migration
     }
 
     /**
+     * Initialize the database using the schema file located in the schema
+     * directory with schema version.
+     *
      * @return void
      */
     public function init()
@@ -69,22 +72,16 @@ class Migration
     }
 
     /**
+     * Run the migration.
+     *
      * @return bool
-     */
-    public function isRequired()
-    {
-        return $this->schemaVersion !== $this->getCurrentVersion();
-    }
-
-    /**
-     * @return void
      */
     public function run()
     {
         $currentVersion = $this->getCurrentVersion();
         if ($currentVersion === $this->schemaVersion) {
             // database schema is up to date, no update required
-            return;
+            return false;
         }
 
         // this creates a "lock" as only one process will succeed in this...
@@ -125,7 +122,6 @@ class Migration
         }
 
         $currentVersion = $this->getCurrentVersion();
-
         if ($currentVersion !== $this->schemaVersion) {
             // XXX exception type... should we move this later after unlocking again?!
             throw new RuntimeException(\sprintf('unable to upgrade to "%s"', $this->schemaVersion));
@@ -138,9 +134,13 @@ class Migration
 
         // release "lock"
         $this->dbh->exec('DROP TABLE _migration_in_progress');
+
+        return true;
     }
 
     /**
+     * Gets the current version of the database schema.
+     *
      * @return false|string
      */
     public function getCurrentVersion()

@@ -1,42 +1,47 @@
-Very simple library written in PHP that can assist with database migrations for 
-[SQLite](https://www.sqlite.org/index.html).
+Library written in PHP that can assist with 
+[SQLite]((https://www.sqlite.org/index.html) database migrations.
 
 # Why
 
-Ability to modify an SQLite database scheme "in the field" to support software 
-updates through DEB and RPM packages so as to not require a system 
-administrator to manually run a database migration script.
+Sometimes you need to perform database schema migrations "in the field" without
+having the option to have an administrator manually perform the database 
+migration after installing a software update.
 
-**NOTE**: for (very) big migrations this may NOT be a good idea!
+Typically this is useful for software that is deployed on systems out of your
+control through an OS package manager where you hook into the normal update 
+process of the OS and want to have the ability to update the database schema.
+
+This library is optimized for running during the "initialization" phase of your
+`index.php`, so it can be executed on every request.
 
 # Features
 
-* Can be implemented for a currently deployed application using SQLite that
-  did not consider database scheme updates;
+* Can be implemented for a currently deployed (web) application that did not 
+  consider database scheme updates from the start;
 * Ability run through multiple schema updates when e.g. software was not 
-  regularly updated and multiple updates occurred between the installed version
-  and the latest version;
+  regularly updated and multiple schema updates occurred between the installed 
+  version and the latest version;
 * No need to run through all schema updates on application install. The 
-  application can always install the latest schema;
+  application will always install the latest schema and start from there;
 * Uses `PDO` database abstraction layer;
-* Optionally can be used for "hot migrations", i.e. check if the schema needs 
-  to be updated on every HTTP request and then perform the update;
-* Uses database transactions to run migration steps;
+* Optimized for running during every (HTTP) request;
+* Uses database transactions to run migrations, guaranteeing a migration either
+  fully completed or is rolled back;
 * Implement rudimentary "locking" to prevent the migration to run multiple 
   times when application is under load.
 
 # Limitations
 
-Of course "hot migrations" are not reasonable when you have a million rows in
-your database, but it SHOULD still work. It is recommended to only update in
-a maintenance windows in any case.
+Migrating during the normal application flow may not be reasonable for tables
+with millions of rows. Manually triggering the update during e.g. a maintenance 
+window is also supported.
 
 # Assumptions
 
 We assume you have a SQLite database somewhere with some tables in it, or not 
 yet when you start a new application. That's it. Ideally you interface with 
 your database through one class. This way you can add the methods `init()` and 
-`migrate()` to them. See [API](#api) below.
+`migrate()` to them. See [API](#api) below for examples.
 
 # Versions
 
@@ -46,133 +51,77 @@ recommended format is `YYYYMMDDXX` where `XX` is the sequence that starts at
 `00` for the first version of that day. An example: `2018061502` for the 
 third schema version on June 15th in 2018.
 
-Internally the library uses `Migration::NO_VERSION` for when no version table is 
-available (yet). The value of `NO_VERSION` is `0000000000`.
+Internally the library uses `Migration::NO_VERSION` for when a database does 
+not yet have a version. The value of `NO_VERSION` is `0000000000`. You can 
+use `0000000000` also in migration files.
+
+# Schema Files
+
+Schema files are used to initialize a clean database. It contains the 
+`CREATE TABLE` statements. They are named after their version and located in 
+the schema directory. As an example, `/usr/share/app/schema/2018050501.schema` 
+contains:
+
+    CREATE TABLE foo (a INTEGER NOT NULL)
+
+Schema files contain ONE query per line and are separated by UNIX newlines.
+
+# Migration Files
+
+Migration files contain the queries moving from one version to the next. 
+Suppose in order to move from `2018050501` to `2018050502` a column is added
+to the table `foo`. In this case, the file 
+`/usr/share/app/schema/2018050501_2018050502.migration` could contain this:
+
+    ALTER TABLE foo RENAME TO _foo
+    CREATE TABLE foo (a INTEGER NOT NULL, b INTEGER DEFAULT 0)
+    INSERT INTO foo (a) SELECT a FROM _foo
+    DROP TABLE _foo
+
+Make sure to also create a `2018050502.schema` so new installations will 
+immediately get the new database schema.
+
+Migration files contain ONE query per line and are separated by UNIX newlines.
 
 # API
 
-We assume you have a database class where we'll define an `init()` and 
-`migrate()` method. The `init()` is used during application installation to 
-initialize the database. The `init()` function will always contain the most up 
-to data database schema with the version matching `SCHEMA_VERSION` as used 
-below. The `migrate()` method contains the required update steps to reach 
-*this* schema version if an old schema version is currently deployed.
+The API is very simple. The constructor requires a `PDO` object, the directory
+where the schema and migration files can be found and the latest database
+schema version.
 
-    <?php
+    $migration = new Migration(
+        new PDO('sqlite::memory:'),
+        '/usr/share/app/schema',
+        '2018050501'
+    );
 
-    use fkooman\SqliteMigrate\Migration;
+    // initialize the database by looking for 2018050501.schema in the schema
+    // directory. ONLY use this during application installation!
+    $migration->init();
 
-    class DbStorage
-    {
-        const SCHEMA_VERSION = '2018061001';
+    // check whether the currently deploy database schema is different from the
+    // latest version as specified in the constructor
+    $migration->isRequired();
 
-        /** @var \PDO */
-        private $dbh;
+    // run the migration when needed moving from the currently deployed schema
+    // version to the version specified in the constructor by looking for 
+    // migration files in the schema directory
+    $migration->run();
 
-        /** @var \fkooman\SqliteMigrate\Migration */
-        private $migration;
+If your application has an "install" or "init" script you can use that to call
+the `init()` method.
 
-        public function __construct(PDO $dbh)
-        {
-            $this->dbh = $dbh;
-            $this->migration = new Migration($dbh, self::SCHEMA_VERSION);
-        }
+To perform database schema updates when needed, you can use the following call
+in your `index.php` before using the database:
 
-        /**
-         * Call this when you install your application, this happens only once.
-         */
-        public function init()
-        {
-            $this->migration->init(
-                [
-                    'CREATE TABLE foo (a INTEGER NOT NULL)',
-                ]
-            );
-        }
-
-        /**
-         * Call this every time. If there is nothing to update it will only
-         * perform 1 SELECT query...
-         */
-        public function migrate()
-        {
-            $this->migration->run();
-        }
+    if ($migration->run()) {
+        echo "Migrated!";
+    } else { 
+        ecoh "No migration was needed.";
     }
 
-In the future if you want to update the schema, what you'll do is increment the 
-`SCHEMA_VERSION`, make sure the `init()` method creates this version of the 
-schema and define an update step in the `run()` method. Suppose the new 
-version of the schema is `2018061601` then you can define this update:
-
-    <?php 
-
-    // ...
-
-    const SCHEMA_VERSION = '2018061601';
-
-    // ...
-
-    public function init()
-    {
-        $this->migration->init(
-            [
-                'CREATE TABLE foo (a INTEGER NOT NULL, b INTEGER DEFAULT 0)',
-            ]
-        );
-    }
-
-    public function migrate()
-    {
-        $this->migration->addMigration(
-            '2018061001',
-            '2018061601',
-            [
-                'ALTER TABLE foo RENAME TO _foo',
-                'CREATE TABLE foo (a INTEGER NOT NULL, b INTEGER DEFAULT 0)',
-                'INSERT INTO foo (a) SELECT a FROM _foo',
-                'DROP TABLE _foo',
-            ]
-        );
-        $this->migration->run();
-    }
-
-If you deployed your application initially without any schema version, you 
-also need an update from the schema without version to one with version:
-
-    <?php
-
-    // ...
-
-    const SCHEMA_VERSION = '2018061601';
-
-    // ...
-
-    public function migrate()
-    {
-        $this->migration->addMigration(
-            Migration::NO_VERSION,
-            '2018061001',
-            []
-        );
-        $this->migration->addMigration(
-            '2018061001',
-            '2018061601',
-            [
-                'ALTER TABLE foo RENAME TO _foo',
-                'CREATE TABLE foo (a INTEGER NOT NULL, b INTEGER DEFAULT 0)',
-                'INSERT INTO foo (a) SELECT a FROM _foo',
-                'DROP TABLE _foo',
-            ]
-        );
-        $this->migration->run();
-    }
-
-Here, in this example we assumed that schema `2018061001` is the same as the 
-schema without version, so this particular update doesn't need to do anything, 
-except bring it under version control. After this, the next update can be 
-applied, exactly like before. The library will chain the updates and execute
-them one after the other.
+The `run()` method returns a boolean, indicating whether or not a migration 
+was performed.
 
 # Contact
 
