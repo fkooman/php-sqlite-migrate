@@ -110,19 +110,14 @@ class Migration
                     $currentVersion = $toVersion;
                 } catch (PDOException $e) {
                     $this->dbh->rollback();
-                    // XXX we have to renable FKs, and release lock
+                    $this->finallyCompat($hasForeignKeys);
+
                     throw $e;
                 }
             }
         }
 
-        // enable "foreign_keys" if they were on...
-        if ($hasForeignKeys) {
-            $this->dbh->exec('PRAGMA foreign_keys = ON');
-        }
-
-        // release "lock"
-        $this->dbh->exec('DROP TABLE _migration_in_progress');
+        $this->finallyCompat($hasForeignKeys);
 
         $currentVersion = $this->getCurrentVersion();
         if ($currentVersion !== $this->schemaVersion) {
@@ -155,6 +150,21 @@ class Migration
 
             return self::NO_VERSION;
         }
+    }
+
+    /**
+     * @param bool $hasForeignKeys
+     *
+     * @return void
+     */
+    private function finallyCompat($hasForeignKeys)
+    {
+        // enable "foreign_keys" if they were on...
+        if ($hasForeignKeys) {
+            $this->dbh->exec('PRAGMA foreign_keys = ON');
+        }
+        // release "lock"
+        $this->dbh->exec('DROP TABLE _migration_in_progress');
     }
 
     /**
