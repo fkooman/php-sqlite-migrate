@@ -210,9 +210,11 @@ class Migration
     private function runQueries(array $queryList)
     {
         foreach ($queryList as $dbQuery) {
-            if (0 !== \strlen(\trim($dbQuery))) {
-                $this->dbh->exec($dbQuery);
+            if (0 === \strlen(\trim($dbQuery))) {
+                // ignore empty line(s)
+                continue;
             }
+            $this->dbh->exec($dbQuery);
         }
     }
 
