@@ -240,7 +240,7 @@ class Migration
             throw new RuntimeException(\sprintf('unable to read "%s"', $filePath));
         }
 
-        return \explode("\n", $fileContent);
+        return \explode(';', $fileContent);
     }
 
     /**
