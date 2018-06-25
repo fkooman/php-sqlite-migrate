@@ -62,9 +62,10 @@ Schema files are used to initialize a clean database. It contains the
 the schema directory. As an example, `/usr/share/app/schema/2018050501.schema` 
 contains:
 
-    CREATE TABLE foo (a INTEGER NOT NULL)
+    CREATE TABLE foo (a INTEGER NOT NULL);
 
-Schema files contain ONE query per line and are separated by UNIX newlines.
+Schema files contain ONE query per line and are separated by a semi colon 
+(`;`).
 
 # Migration Files
 
@@ -73,15 +74,16 @@ Suppose in order to move from `2018050501` to `2018050502` a column is added
 to the table `foo`. In this case, the file 
 `/usr/share/app/schema/2018050501_2018050502.migration` could contain this:
 
-    ALTER TABLE foo RENAME TO _foo
-    CREATE TABLE foo (a INTEGER NOT NULL, b INTEGER DEFAULT 0)
-    INSERT INTO foo (a) SELECT a FROM _foo
-    DROP TABLE _foo
+    ALTER TABLE foo RENAME TO _foo;
+    CREATE TABLE foo (a INTEGER NOT NULL, b INTEGER DEFAULT 0);
+    INSERT INTO foo (a) SELECT a FROM _foo;
+    DROP TABLE _foo;
 
 Make sure to also create a `2018050502.schema` so new installations will 
 immediately get the new database schema.
 
-Migration files contain ONE query per line and are separated by UNIX newlines.
+Migration files contain ONE query per line and are separated by a semi colon 
+(`;`).
 
 # API
 
