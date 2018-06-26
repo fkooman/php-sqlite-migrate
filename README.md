@@ -43,6 +43,24 @@ yet when you start a new application. That's it. Ideally you interface with
 your database through one class. This way you can add the methods `init()` and 
 `migrate()` to them. See [API](#api) below for examples.
 
+# Use
+
+You can use [Composer](https://getcomposer.org/) to integrate it in your 
+project. The library is not currently published on 
+[Packagist](https://packagist.org/), but you can add the repository directly
+in your `composer.json`:
+
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://git.tuxed.net/fkooman/php-sqlite-migrate"
+        }
+    ],
+
+    "require": {
+        "fkooman/sqlite-migrate": "^0"
+    }
+
 # Versions
 
 The versions consist of a string of 10 digits. It makes sense to encode the 
