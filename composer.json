@@ -17,7 +17,7 @@
     },
     "description": "Simple SQLite Migrations",
     "license": "MIT",
-    "name": "fkooman/php-sqlite-migrate",
+    "name": "fkooman/sqlite-migrate",
     "require": {
         "ext-pcre": "*",
         "ext-pdo": "*",
