@@ -78,9 +78,12 @@ class Migration
     /**
      * Run the migration.
      *
+     * @param null|callable $beforeHook
+     * @param null|callable $afterHook
+     *
      * @return bool
      */
-    public function run()
+    public function run(callable $beforeHook = null, callable $afterHook = null)
     {
         $currentVersion = $this->getCurrentVersion();
         if ($currentVersion === $this->schemaVersion) {
@@ -100,6 +103,9 @@ class Migration
                 $migrationVersion = \basename($migrationFile, '.migration');
                 list($fromVersion, $toVersion) = self::validateMigrationVersion($migrationVersion);
                 if ($fromVersion === $currentVersion && $fromVersion !== $this->schemaVersion) {
+                    if (null !== $beforeHook) {
+                        \call_user_func($beforeHook, $migrationVersion);
+                    }
                     // get the queries before we start the transaction as we
                     // ONLY want to deal with "PDOExceptions" once the
                     // transacation started...
@@ -116,6 +122,9 @@ class Migration
                         $this->dbh->rollback();
 
                         throw $e;
+                    }
+                    if (null !== $afterHook) {
+                        \call_user_func($afterHook, $migrationVersion);
                     }
                 }
             }
