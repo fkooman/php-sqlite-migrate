@@ -124,7 +124,7 @@ class MigrationTest extends TestCase
         $this->assertSame('2018020201', $migration->getCurrentVersion());
         $migration = new Migration($dbh, $this->schemaDir, '2018020202');
         try {
-            $this->assertTrue($migration->run());
+            $migration->run();
             $this->fail();
         } catch (PDOException $e) {
             $this->assertSame('2018020201', $migration->getCurrentVersion());
