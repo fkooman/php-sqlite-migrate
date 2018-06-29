@@ -50,6 +50,7 @@ project. The library is not currently published on
 [Packagist](https://packagist.org/), but you can add the repository directly
 in your `composer.json`:
 
+```javascript
     "repositories": [
         {
             "type": "vcs",
@@ -60,6 +61,7 @@ in your `composer.json`:
     "require": {
         "fkooman/sqlite-migrate": "^0"
     }
+```
 
 # Versions
 
@@ -80,7 +82,9 @@ Schema files are used to initialize a clean database. It contains the
 the schema directory. As an example, `/usr/share/app/schema/2018050501.schema` 
 contains:
 
+```sql
     CREATE TABLE foo (a INTEGER NOT NULL);
+```
 
 Schema files contain ONE query per line and are separated by a semi colon 
 (`;`).
@@ -92,10 +96,12 @@ Suppose in order to move from `2018050501` to `2018050502` a column is added
 to the table `foo`. In this case, the file 
 `/usr/share/app/schema/2018050501_2018050502.migration` could contain this:
 
+```sql
     ALTER TABLE foo RENAME TO _foo;
     CREATE TABLE foo (a INTEGER NOT NULL, b INTEGER DEFAULT 0);
     INSERT INTO foo (a) SELECT a FROM _foo;
     DROP TABLE _foo;
+```
 
 Make sure to also create a `2018050502.schema` so new installations will 
 immediately get the new database schema.
@@ -109,6 +115,7 @@ The API is very simple. The constructor requires a `PDO` object, the directory
 where the schema and migration files can be found and the latest database
 schema version.
 
+```php
     $migration = new Migration(
         new PDO('sqlite::memory:'),
         '/usr/share/app/schema',
@@ -123,6 +130,7 @@ schema version.
     // version to the version specified in the constructor by looking for 
     // migration files in the schema directory
     $migration->run();
+```
 
 If your application has an "install" or "init" script you can use that to call
 the `init()` method.
@@ -130,11 +138,13 @@ the `init()` method.
 To perform database schema updates when needed, you can use the following call
 in your `index.php` before using the database:
 
+```php
     if ($migration->run()) {
         echo "Migrated!";
     } else { 
         echo "No migration was needed.";
     }
+```
 
 The `run()` method returns a `boolean`, indicating whether or not a migration 
 was performed.
