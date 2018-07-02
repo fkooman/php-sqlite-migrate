@@ -85,6 +85,10 @@ contains:
 Schema files contain ONE query per line and are separated by a semi colon 
 (`;`).
 
+**NOTE**: you can currently NOT use the `;` character in the schema files for 
+any other purpose than to separate the queries!
+
+
 # Migration Files
 
 Migration files contain the queries moving from one version to the next. 
@@ -101,7 +105,10 @@ Make sure to also create a `2018050502.schema` so new installations will
 immediately get the new database schema.
 
 Migration files contain ONE query per line and are separated by a semi colon 
-(`;`).
+(`;`). 
+
+**NOTE**: you can currently NOT use the `;` character in the migration files 
+for any other purpose than to separate the queries!
 
 # API
 
