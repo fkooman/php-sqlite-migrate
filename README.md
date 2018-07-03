@@ -89,12 +89,7 @@ contains:
     CREATE TABLE foo (a INTEGER NOT NULL);
 ```
 
-Schema files contain ONE query per line and are separated by a semi colon 
-(`;`).
-
-**NOTE**: you can currently NOT use the `;` character in the schema files for 
-any other purpose than to separate the queries!
-
+See [File Format](#file-format).
 
 # Migration Files
 
@@ -113,11 +108,13 @@ to the table `foo`. In this case, the file
 Make sure to also create a `2018050502.schema` so new installations will 
 immediately get the new database schema.
 
-Migration files contain ONE query per line and are separated by a semi colon 
-(`;`). 
+See [File Format](#file-format).
 
-**NOTE**: you can currently NOT use the `;` character in the migration files 
-for any other purpose than to separate the queries!
+# File Format
+
+Schema and migrations files contain SQL queries. Queries are separated by the 
+semicolon character (`;`). The semicolon can ONLY be used to separate queries, 
+the queries themselves can NOT contain semicolons.
 
 # API
 
