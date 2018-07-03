@@ -28,7 +28,10 @@ This library is optimized for running during the "initialization" phase of your
 * Uses database transactions to run migrations, guaranteeing a migration either
   fully completed or is rolled back;
 * Implement rudimentary "locking" to prevent the migration to run multiple 
-  times when application is under load.
+  times when application is under load;
+* No dependencies, only core PHP functionality;
+* Less than 200 NCLOC;
+* Supports PHP >= 5.4.
 
 # Limitations
 
