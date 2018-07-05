@@ -103,8 +103,9 @@ class Migration
                 $migrationVersion = \basename($migrationFile, '.migration');
                 list($fromVersion, $toVersion) = self::validateMigrationVersion($migrationVersion);
                 if ($fromVersion === $currentVersion && $fromVersion !== $this->schemaVersion) {
+                    // run the hook *before* starting the migration
                     if (null !== $beforeHook) {
-                        $hookData[$migrationVersion] = \call_user_func($beforeHook, $migrationVersion);
+                        $hookData[$migrationVersion] = \call_user_func($beforeHook, $migrationVersion, $hookData);
                     }
                     // get the queries before we start the transaction as we
                     // ONLY want to deal with "PDOExceptions" once the
@@ -123,6 +124,7 @@ class Migration
 
                         throw $e;
                     }
+                    // run the hook *after* the migration
                     if (null !== $afterHook) {
                         \call_user_func($afterHook, $migrationVersion, $hookData);
                     }

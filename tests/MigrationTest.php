@@ -159,4 +159,24 @@ class MigrationTest extends TestCase
         $this->assertSame('1', $sth->fetchColumn(0));
         $sth->closeCursor();
     }
+
+    public function testBeforeAfterHooks()
+    {
+        $dbh = new PDO('sqlite::memory:');
+        $migration = new Migration($dbh, $this->schemaDir, '2018010101');
+        $migration->init();
+        $migration = new Migration($dbh, $this->schemaDir, '2018010102');
+        $this->assertTrue($migration->run(
+            function ($migrationVersion, array $hookData) {
+                $this->assertSame(0, \count($hookData));
+
+                return 'foo';
+            },
+            function ($migrationVersion, array $hookData) {
+                $this->assertSame(1, \count($hookData));
+                $this->assertSame('foo', $hookData['2018010101_2018010102']);
+            }
+        ));
+        $this->assertSame('2018010102', $migration->getCurrentVersion());
+    }
 }
