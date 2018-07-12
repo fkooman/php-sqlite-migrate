@@ -88,6 +88,7 @@ class Migration
             return false;
         }
 
+        /** @var false|array<string> $migrationList */
         $migrationList = @\glob(\sprintf('%s/*_*.migration', $this->schemaDir));
         if (false === $migrationList) {
             throw new RuntimeException(\sprintf('unable to read schema directory "%s"', $this->schemaDir));
@@ -237,6 +238,7 @@ class Migration
      */
     private static function getQueriesFromFile($filePath)
     {
+        /** @var false|string $fileContent */
         $fileContent = @\file_get_contents($filePath);
         if (false === $fileContent) {
             throw new RuntimeException(\sprintf('unable to read "%s"', $filePath));
