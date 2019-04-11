@@ -33,6 +33,7 @@ use RuntimeException;
 
 class Migration
 {
+    /** @var string */
     const NO_VERSION = '0000000000';
 
     /** @var \PDO */
@@ -150,7 +151,7 @@ class Migration
             $sth = $this->dbh->query('SELECT current_version FROM version');
             $currentVersion = $sth->fetchColumn(0);
             $sth->closeCursor();
-            if (false === $currentVersion) {
+            if (!\is_string($currentVersion)) {
                 throw new MigrationException('unable to retrieve current version');
             }
 
