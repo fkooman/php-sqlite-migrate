@@ -53,8 +53,7 @@ class Migration
     public function __construct(PDO $dbh, $schemaDir, $schemaVersion)
     {
         if ('sqlite' !== $dbh->getAttribute(PDO::ATTR_DRIVER_NAME)) {
-            // we only support SQLite for now
-            throw new RuntimeException('only SQLite is supported');
+            throw new RuntimeException('driver "sqlite" expected');
         }
         $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $this->dbh = $dbh;
@@ -165,6 +164,34 @@ class Migration
     }
 
     /**
+     * @return void
+     */
+    private function disableForeignKeys()
+    {
+        $this->dbh->exec('PRAGMA foreign_keys = OFF');
+    }
+
+    /**
+     * @return void
+     */
+    private function enableForeignKeys()
+    {
+        $this->dbh->exec('PRAGMA foreign_keys = ON');
+    }
+
+    /**
+     * @return bool
+     */
+    private function hasForeignKeys()
+    {
+        $sth = $this->dbh->query('PRAGMA foreign_keys');
+        $hasForeignKeys = '1' === $sth->fetchColumn(0);
+        $sth->closeCursor();
+
+        return $hasForeignKeys;
+    }
+
+    /**
      * @return bool
      */
     private function lock()
@@ -173,7 +200,7 @@ class Migration
         $this->dbh->exec('CREATE TABLE _migration_in_progress (dummy INTEGER)');
 
         if ($hasForeignKeys = $this->hasForeignKeys()) {
-            $this->dbh->exec('PRAGMA foreign_keys = OFF');
+            $this->disableForeignKeys();
         }
 
         return $hasForeignKeys;
@@ -188,7 +215,7 @@ class Migration
     {
         // enable "foreign_keys" if they were on...
         if ($hasForeignKeys) {
-            $this->dbh->exec('PRAGMA foreign_keys = ON');
+            $this->enableForeignKeys();
         }
         // release "lock"
         $this->dbh->exec('DROP TABLE _migration_in_progress');
@@ -219,18 +246,6 @@ class Migration
             }
             $this->dbh->exec($dbQuery);
         }
-    }
-
-    /**
-     * @return bool
-     */
-    private function hasForeignKeys()
-    {
-        $sth = $this->dbh->query('PRAGMA foreign_keys');
-        $hasForeignKeys = '1' === $sth->fetchColumn(0);
-        $sth->closeCursor();
-
-        return $hasForeignKeys;
     }
 
     /**
