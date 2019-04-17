@@ -34,31 +34,34 @@ class MigrationTest extends TestCase
     /** @var string */
     private $schemaDir;
 
+    /** @var \PDO */
+    private $dbh;
+
     public function setUp()
     {
         $this->schemaDir = \sprintf('%s/schema', __DIR__);
+        $this->dbh = new PDO('sqlite::memory:');
     }
 
     public function testInit()
     {
-        $migration = new Migration(new PDO('sqlite::memory:'), $this->schemaDir, '2018010101');
+        $migration = new Migration($this->dbh, $this->schemaDir, '2018010101');
         $migration->init();
         $this->assertSame('2018010101', $migration->getCurrentVersion());
     }
 
     public function testSimpleMigration()
     {
-        $dbh = new PDO('sqlite::memory:');
-        $migration = new Migration($dbh, $this->schemaDir, '2018010101');
+        $migration = new Migration($this->dbh, $this->schemaDir, '2018010101');
         $migration->init();
         $this->assertSame('2018010101', $migration->getCurrentVersion());
-        $dbh->exec('INSERT INTO foo (a) VALUES(3)');
+        $this->dbh->exec('INSERT INTO foo (a) VALUES(3)');
 
-        $migration = new Migration($dbh, $this->schemaDir, '2018010102');
+        $migration = new Migration($this->dbh, $this->schemaDir, '2018010102');
         $this->assertTrue($migration->run());
         $this->assertSame('2018010102', $migration->getCurrentVersion());
         $this->assertFalse($migration->run());
-        $sth = $dbh->query('SELECT * FROM foo');
+        $sth = $this->dbh->query('SELECT * FROM foo');
         $this->assertSame(
             [
                 [
@@ -72,15 +75,14 @@ class MigrationTest extends TestCase
 
     public function testMultiMigration()
     {
-        $dbh = new PDO('sqlite::memory:');
-        $migration = new Migration($dbh, $this->schemaDir, '2018010101');
+        $migration = new Migration($this->dbh, $this->schemaDir, '2018010101');
         $migration->init();
         $this->assertSame('2018010101', $migration->getCurrentVersion());
-        $dbh->exec('INSERT INTO foo (a) VALUES(3)');
-        $migration = new Migration($dbh, $this->schemaDir, '2018010103');
+        $this->dbh->exec('INSERT INTO foo (a) VALUES(3)');
+        $migration = new Migration($this->dbh, $this->schemaDir, '2018010103');
         $migration->run();
         $this->assertSame('2018010103', $migration->getCurrentVersion());
-        $sth = $dbh->query('SELECT * FROM foo');
+        $sth = $this->dbh->query('SELECT * FROM foo');
         $this->assertSame(
             [
                 [
@@ -98,14 +100,13 @@ class MigrationTest extends TestCase
         // we have a database without versioning, but we want to bring it
         // under version control, we can't run init as that would install the
         // version table...
-        $dbh = new PDO('sqlite::memory:');
-        $dbh->exec('CREATE TABLE foo (a INTEGER NOT NULL)');
-        $dbh->exec('INSERT INTO foo (a) VALUES(3)');
-        $migration = new Migration($dbh, $this->schemaDir, '2018010101');
+        $this->dbh->exec('CREATE TABLE foo (a INTEGER NOT NULL)');
+        $this->dbh->exec('INSERT INTO foo (a) VALUES(3)');
+        $migration = new Migration($this->dbh, $this->schemaDir, '2018010101');
         $this->assertSame('0000000000', $migration->getCurrentVersion());
         $migration->run();
         $this->assertSame('2018010101', $migration->getCurrentVersion());
-        $sth = $dbh->query('SELECT * FROM foo');
+        $sth = $this->dbh->query('SELECT * FROM foo');
         $this->assertSame(
             [
                 [
@@ -118,11 +119,10 @@ class MigrationTest extends TestCase
 
     public function testFailingUpdate()
     {
-        $dbh = new PDO('sqlite::memory:');
-        $migration = new Migration($dbh, $this->schemaDir, '2018020201');
+        $migration = new Migration($this->dbh, $this->schemaDir, '2018020201');
         $migration->init();
         $this->assertSame('2018020201', $migration->getCurrentVersion());
-        $migration = new Migration($dbh, $this->schemaDir, '2018020202');
+        $migration = new Migration($this->dbh, $this->schemaDir, '2018020202');
         try {
             $migration->run();
             $this->fail();
@@ -133,18 +133,17 @@ class MigrationTest extends TestCase
 
     public function testWithForeignKeys()
     {
-        $dbh = new PDO('sqlite::memory:');
-        $dbh->exec('PRAGMA foreign_keys = ON');
-        $migration = new Migration($dbh, $this->schemaDir, '2018010101');
+        $this->dbh->exec('PRAGMA foreign_keys = ON');
+        $migration = new Migration($this->dbh, $this->schemaDir, '2018010101');
         $migration->init();
         $this->assertSame('2018010101', $migration->getCurrentVersion());
-        $dbh->exec('INSERT INTO foo (a) VALUES(3)');
+        $this->dbh->exec('INSERT INTO foo (a) VALUES(3)');
 
-        $migration = new Migration($dbh, $this->schemaDir, '2018010102');
+        $migration = new Migration($this->dbh, $this->schemaDir, '2018010102');
         $this->assertTrue($migration->run());
         $this->assertSame('2018010102', $migration->getCurrentVersion());
         $this->assertFalse($migration->run());
-        $sth = $dbh->query('SELECT * FROM foo');
+        $sth = $this->dbh->query('SELECT * FROM foo');
         $this->assertSame(
             [
                 [
@@ -155,7 +154,7 @@ class MigrationTest extends TestCase
             $sth->fetchAll(PDO::FETCH_ASSOC)
         );
         // make sure FK are back on again
-        $sth = $dbh->query('PRAGMA foreign_keys');
+        $sth = $this->dbh->query('PRAGMA foreign_keys');
         $this->assertSame('1', $sth->fetchColumn(0));
         $sth->closeCursor();
     }
