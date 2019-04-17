@@ -6,19 +6,14 @@ return PhpCsFixer\Config::create()
         [
             '@Symfony' => true,
             '@Symfony:risky' => true,
-            'ordered_imports' => true,
-            'ordered_class_elements' => true,
-            'array_syntax' => ['syntax' => 'short'],
-            'native_function_invocation' => true,
-            'phpdoc_order' => true,
+            '@PhpCsFixer' => true,
+            '@PhpCsFixer:risky' => true,
             'phpdoc_no_empty_return' => false,
-            'phpdoc_add_missing_param_annotation' => true,
-            'strict_comparison' => true,
-            'strict_param' => true,
-            'php_unit_strict' => true,
+            'no_short_echo_tag' => false,
+            'no_alternative_syntax' => false,
             'header_comment' => [
                 'header' => <<< 'EOD'
-Copyright (c) 2018 François Kooman <fkooman@tuxed.net>
+Copyright (c) 2019 François Kooman <fkooman@tuxed.net>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -38,7 +33,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 EOD
-             ],
+            ],
         ]
     )
-    ->setFinder(PhpCsFixer\Finder::create()->in(__DIR__));
+    ->setFinder(PhpCsFixer\Finder::create()->in(__DIR__))
+;

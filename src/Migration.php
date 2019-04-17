@@ -1,7 +1,7 @@
 <?php
 
 /*
- * Copyright (c) 2018 François Kooman <fkooman@tuxed.net>
+ * Copyright (c) 2019 François Kooman <fkooman@tuxed.net>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -71,7 +71,7 @@ class Migration
     public function init()
     {
         $this->runQueries(
-            self::getQueriesFromFile(\sprintf('%s/%s.schema', $this->schemaDir, $this->schemaVersion))
+            self::getQueriesFromFile(sprintf('%s/%s.schema', $this->schemaDir, $this->schemaVersion))
         );
         $this->createVersionTable($this->schemaVersion);
     }
@@ -89,28 +89,29 @@ class Migration
             return false;
         }
 
-        /** @var false|array<string> $migrationList */
-        $migrationList = \glob(\sprintf('%s/*_*.migration', $this->schemaDir));
+        /** @var array<string>|false $migrationList */
+        $migrationList = glob(sprintf('%s/*_*.migration', $this->schemaDir));
         if (false === $migrationList) {
-            throw new RuntimeException(\sprintf('unable to read schema directory "%s"', $this->schemaDir));
+            throw new RuntimeException(sprintf('unable to read schema directory "%s"', $this->schemaDir));
         }
 
         $hasForeignKeys = $this->lock();
 
         try {
             foreach ($migrationList as $migrationFile) {
-                $migrationVersion = \basename($migrationFile, '.migration');
+                $migrationVersion = basename($migrationFile, '.migration');
                 list($fromVersion, $toVersion) = self::validateMigrationVersion($migrationVersion);
                 if ($fromVersion === $currentVersion && $fromVersion !== $this->schemaVersion) {
                     // get the queries before we start the transaction as we
                     // ONLY want to deal with "PDOExceptions" once the
                     // transacation started...
-                    $queryList = self::getQueriesFromFile(\sprintf('%s/%s.migration', $this->schemaDir, $migrationVersion));
+                    $queryList = self::getQueriesFromFile(sprintf('%s/%s.migration', $this->schemaDir, $migrationVersion));
+
                     try {
                         $this->dbh->beginTransaction();
-                        $this->dbh->exec(\sprintf("DELETE FROM version WHERE current_version = '%s'", $fromVersion));
+                        $this->dbh->exec(sprintf("DELETE FROM version WHERE current_version = '%s'", $fromVersion));
                         $this->runQueries($queryList);
-                        $this->dbh->exec(\sprintf("INSERT INTO version (current_version) VALUES('%s')", $toVersion));
+                        $this->dbh->exec(sprintf("INSERT INTO version (current_version) VALUES('%s')", $toVersion));
                         $this->dbh->commit();
                         $currentVersion = $toVersion;
                     } catch (PDOException $e) {
@@ -133,7 +134,7 @@ class Migration
         $currentVersion = $this->getCurrentVersion();
         if ($currentVersion !== $this->schemaVersion) {
             throw new MigrationException(
-                \sprintf('unable to upgrade to "%s", not all required migrations are available', $this->schemaVersion)
+                sprintf('unable to upgrade to "%s", not all required migrations are available', $this->schemaVersion)
             );
         }
 
@@ -201,7 +202,7 @@ class Migration
     private function createVersionTable($schemaVersion)
     {
         $this->dbh->exec('CREATE TABLE version (current_version TEXT NOT NULL)');
-        $this->dbh->exec(\sprintf("INSERT INTO version (current_version) VALUES('%s')", $schemaVersion));
+        $this->dbh->exec(sprintf("INSERT INTO version (current_version) VALUES('%s')", $schemaVersion));
     }
 
     /**
@@ -212,7 +213,7 @@ class Migration
     private function runQueries(array $queryList)
     {
         foreach ($queryList as $dbQuery) {
-            if (0 === \strlen(\trim($dbQuery))) {
+            if (0 === \strlen(trim($dbQuery))) {
                 // ignore empty line(s)
                 continue;
             }
@@ -240,12 +241,12 @@ class Migration
     private static function getQueriesFromFile($filePath)
     {
         /** @var false|string $fileContent */
-        $fileContent = \file_get_contents($filePath);
+        $fileContent = file_get_contents($filePath);
         if (false === $fileContent) {
-            throw new RuntimeException(\sprintf('unable to read "%s"', $filePath));
+            throw new RuntimeException(sprintf('unable to read "%s"', $filePath));
         }
 
-        return \explode(';', $fileContent);
+        return explode(';', $fileContent);
     }
 
     /**
@@ -255,7 +256,7 @@ class Migration
      */
     private static function validateSchemaVersion($schemaVersion)
     {
-        if (1 !== \preg_match('/^[0-9]{10}$/', $schemaVersion)) {
+        if (1 !== preg_match('/^[0-9]{10}$/', $schemaVersion)) {
             throw new RangeException('schemaVersion must be 10 a digit string');
         }
 
@@ -269,10 +270,10 @@ class Migration
      */
     private static function validateMigrationVersion($migrationVersion)
     {
-        if (1 !== \preg_match('/^[0-9]{10}_[0-9]{10}$/', $migrationVersion)) {
+        if (1 !== preg_match('/^[0-9]{10}_[0-9]{10}$/', $migrationVersion)) {
             throw new RangeException('migrationVersion must be two times a 10 digit string separated by an underscore');
         }
 
-        return \explode('_', $migrationVersion);
+        return explode('_', $migrationVersion);
     }
 }

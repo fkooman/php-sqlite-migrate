@@ -1,7 +1,7 @@
 <?php
 
 /*
- * Copyright (c) 2018 François Kooman <fkooman@tuxed.net>
+ * Copyright (c) 2019 François Kooman <fkooman@tuxed.net>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,7 +29,11 @@ use PDO;
 use PDOException;
 use PHPUnit\Framework\TestCase;
 
-class MigrationTest extends TestCase
+/**
+ * @internal
+ * @coversNothing
+ */
+final class MigrationTest extends TestCase
 {
     /** @var string */
     private $schemaDir;
@@ -37,12 +41,18 @@ class MigrationTest extends TestCase
     /** @var \PDO */
     private $dbh;
 
-    public function setUp()
+    /**
+     * @return void
+     */
+    protected function setUp()
     {
-        $this->schemaDir = \sprintf('%s/schema', __DIR__);
+        $this->schemaDir = sprintf('%s/schema', __DIR__);
         $this->dbh = new PDO('sqlite::memory:');
     }
 
+    /**
+     * @return void
+     */
     public function testInit()
     {
         $migration = new Migration($this->dbh, $this->schemaDir, '2018010101');
@@ -50,6 +60,9 @@ class MigrationTest extends TestCase
         $this->assertSame('2018010101', $migration->getCurrentVersion());
     }
 
+    /**
+     * @return void
+     */
     public function testSimpleMigration()
     {
         $migration = new Migration($this->dbh, $this->schemaDir, '2018010101');
@@ -73,6 +86,9 @@ class MigrationTest extends TestCase
         );
     }
 
+    /**
+     * @return void
+     */
     public function testMultiMigration()
     {
         $migration = new Migration($this->dbh, $this->schemaDir, '2018010101');
@@ -95,6 +111,9 @@ class MigrationTest extends TestCase
         );
     }
 
+    /**
+     * @return void
+     */
     public function testNoVersion()
     {
         // we have a database without versioning, but we want to bring it
@@ -117,12 +136,16 @@ class MigrationTest extends TestCase
         );
     }
 
+    /**
+     * @return void
+     */
     public function testFailingUpdate()
     {
         $migration = new Migration($this->dbh, $this->schemaDir, '2018020201');
         $migration->init();
         $this->assertSame('2018020201', $migration->getCurrentVersion());
         $migration = new Migration($this->dbh, $this->schemaDir, '2018020202');
+
         try {
             $migration->run();
             $this->fail();
@@ -131,6 +154,9 @@ class MigrationTest extends TestCase
         }
     }
 
+    /**
+     * @return void
+     */
     public function testWithForeignKeys()
     {
         $this->dbh->exec('PRAGMA foreign_keys = ON');
