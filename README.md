@@ -1,3 +1,12 @@
+**Summary**: Library for SQLite database schema migration
+
+**Description**: Library written in PHP that assists with SQLite database 
+schema migrations.
+
+**License**: MIT
+
+# Introduction
+
 Library written in PHP that can assist with 
 [SQLite](https://www.sqlite.org/index.html) database migrations.
 
